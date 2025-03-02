@@ -1,6 +1,5 @@
-# Glittr Prediction Market
+# Glittr AMM
 
-This project implements a decentralized prediction market using the Glittr SDK. It enables the creation of assets, automated market makers (AMM), liquidity provision, and swapping between outcome tokens. The system supports collateralized minting and resolution of market outcomes using an oracle.
 
 ## Features
 
