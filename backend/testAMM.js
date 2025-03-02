@@ -45,7 +45,7 @@ async function verifyValidOutputs(addr, apiKey) {
 }
 
 /**
- * Create an outcome asset (MOA) with a given ticker (e.g., "YES" or "NO")
+ * Create an asset (MOA) with a given ticker (e.g., "TokenA" or "TokenB")
  */
 async function createOutcomeAsset(ticker) {
   const tx = {
@@ -116,10 +116,10 @@ async function mintAsset(contract, pointer = 1) {
 }
 
 /**
- * Create an AMM contract (MBA) that uses the YES and NO tokens as collateral.
+ * Create an AMM contract (MBA) that uses the TokenA and TokenB tokens as collateral.
  * The AMM ticker is passed as an argument.
  */
-async function createAMMContract(yesContract, noContract, ammTicker) {
+async function createAMMContract(TokenAContract, TokenBContract, ammTicker) {
   const tx = {
     contract_creation: {
       contract_type: {
@@ -130,8 +130,8 @@ async function createAMMContract(yesContract, noContract, ammTicker) {
           mint_mechanism: {
             collateralized: {
               input_assets: [
-                { glittr_asset: yesContract },
-                { glittr_asset: noContract },
+                { glittr_asset: TokenAContract },
+                { glittr_asset: TokenBContract },
               ],
               _mutable_assets: false,
               mint_structure: {
@@ -169,30 +169,30 @@ async function createAMMContract(yesContract, noContract, ammTicker) {
 }
 
 /**
- * Deposit liquidity into the AMM by transferring a fixed amount of YES and NO tokens.
+ * Deposit liquidity into the AMM by transferring a fixed amount of TokenA and TokenB tokens.
  */
 async function depositLiquidity(
   ammContract,
-  yesContract,
-  noContract,
+  TokenAContract,
+  TokenBContract,
   depositAmount
 ) {
-  const inputYes = await client.getAssetUtxos(
+  const inputTokenA = await client.getAssetUtxos(
     address,
-    `${yesContract[0]}:${yesContract[1]}`
+    `${TokenAContract[0]}:${TokenAContract[1]}`
   );
-  const inputNo = await client.getAssetUtxos(
+  const inputTokenB = await client.getAssetUtxos(
     address,
-    `${noContract[0]}:${noContract[1]}`
+    `${TokenBContract[0]}:${TokenBContract[1]}`
   );
 
   const sumArray = (arr) =>
     arr.reduce((total, item) => total + parseInt(item.assetAmount), 0);
-  const totalYes = sumArray(inputYes);
-  const totalNo = sumArray(inputNo);
-  console.log(`Total YES: ${totalYes}, Total NO: ${totalNo}`);
+  const totalTokenA = sumArray(inputTokenA);
+  const totalTokenB = sumArray(inputTokenB);
+  console.log(`Total TokenA: ${totalTokenA}, Total TokenB: ${totalTokenB}`);
 
-  if (totalYes < depositAmount || totalNo < depositAmount) {
+  if (totalTokenA < depositAmount || totalTokenB < depositAmount) {
     throw new Error("Insufficient balance to deposit liquidity");
   }
 
@@ -206,14 +206,14 @@ async function depositLiquidity(
     transfer: {
       transfers: [
         {
-          asset: yesContract,
+          asset: TokenAContract,
           output: 1,
-          amount: (totalYes - depositAmount).toString(),
+          amount: (totalTokenA - depositAmount).toString(),
         },
         {
-          asset: noContract,
+          asset: TokenBContract,
           output: 1,
-          amount: (totalNo - depositAmount).toString(),
+          amount: (totalTokenB - depositAmount).toString(),
         },
       ],
     },
@@ -524,29 +524,33 @@ async function depositCollateralAndMintOrSwap(
 async function main() {
   // Generate random suffix for tickers to ensure uniqueness.
   const randomSuffix = Math.floor(Math.random() * 1000000);
-  const yesTicker = "test_yes_" + randomSuffix;
-  const noTicker = "test_no_" + randomSuffix;
+  const TokenATicker = "test_TokenA_" + randomSuffix;
+  const TokenBTicker = "test_TokenB_" + randomSuffix;
   const ammTicker = "AMM-market-" + randomSuffix;
 
   console.log("=== Creating outcome assets for the prediction market ===");
   console.log(account.p2tr().address);
 
-  const yesAsset = await createOutcomeAsset(yesTicker);
-  const noAsset = await createOutcomeAsset(noTicker);
+  const TokenAAsset = await createOutcomeAsset(TokenATicker);
+  const TokenBAsset = await createOutcomeAsset(TokenBTicker);
 
   console.log("=== Minting outcome tokens ===");
-  await mintAsset(yesAsset);
-  await mintAsset(noAsset);
+  await mintAsset(TokenAAsset);
+  await mintAsset(TokenBAsset);
 
   console.log("=== Creating the AMM contract for the prediction market ===");
-  const ammContract = await createAMMContract(yesAsset, noAsset, ammTicker);
+  const ammContract = await createAMMContract(
+    TokenAAsset,
+    TokenBAsset,
+    ammTicker
+  );
 
   console.log("=== Waiting 1 minute before depositing liquidity ===");
   await delay(60000);
 
   console.log("=== Depositing liquidity into the AMM ===");
   const depositAmount = 100; // Adjust as needed
-  await depositLiquidity(ammContract, yesAsset, noAsset, depositAmount);
+  await depositLiquidity(ammContract, TokenAAsset, TokenBAsset, depositAmount);
 
   console.log("=== Waiting 1 minute before performing swap ===");
   await delay(80000);
@@ -554,17 +558,17 @@ async function main() {
   // // Debug: Verify valid outputs after liquidity deposit
   // await verifyValidOutputs(address, API_KEY);
 
-  console.log("=== Performing a swap (example: swap 10 YES tokens) ===");
+  console.log("=== Performing a swap (example: swap 10 TokenA tokens) ===");
   const swapAmount = 100;
   const slippage = 10; // 10% tolerance
-  await performSwap(ammContract, yesAsset, swapAmount, slippage);
+  await performSwap(ammContract, TokenAAsset, swapAmount, slippage);
 
   console.log("=== Simulating market resolution ===");
-  const winningOutcome = "YES";
+  const winningOutcome = "TokenA";
   await resolveMarket(ammContract, winningOutcome);
 
   console.log("=== Claiming winnings ===");
-  await claimWinnings(ammContract, yesAsset);
+  await claimWinnings(ammContract, TokenAAsset);
 
   // Debug: Verify valid outputs after resolution and claims
   await verifyValidOutputs(address, API_KEY);
@@ -575,7 +579,7 @@ async function main() {
   );
   const collateralAsset = ["BTC", "0"]; // Example collateral asset (BTC)
   const collateralDepositAmount = 0.01; // Example deposit amount in BTC
-  const outcomeAsset = "YES"; // Example outcome asset to receive
+  const outcomeAsset = "TokenA"; // Example outcome asset to receive
   const slippagePercentage = 10; // 10% slippage tolerance
   await depositCollateralAndMintOrSwap(
     ammContract,
