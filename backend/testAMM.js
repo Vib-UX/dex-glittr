@@ -374,50 +374,6 @@ async function getOracleCommitment(winningOutcome) {
 }
 
 /**
- * Resolve the market using an oracle commitment.
- */
-async function resolveMarket(ammContract, winningOutcome) {
-  console.log(`Resolving market with winning outcome: ${winningOutcome}`);
-  const oracleCommitment = await getOracleCommitment(winningOutcome);
-  const tx = {
-    contract_call: {
-      contract: ammContract,
-      call_type: {
-        resolve: {
-          pointer: 1,
-          oracle_message: oracleCommitment,
-        },
-      },
-    },
-  };
-  const outputs = [{ address, value: 546 }];
-  const txid = await client.createAndBroadcastTx({
-    account: account.p2tr(),
-    tx,
-    outputs,
-  });
-  console.log(`Market resolution TXID: ${txid}`);
-  console.log("[+] Waiting for market resolution to be mined...");
-  while (true) {
-    try {
-      const message = await client.getGlittrMessageByTxId(txid);
-      console.log("Market resolution mined:", JSON.stringify(message));
-      break;
-    } catch (error) {
-      await delay(1000);
-    }
-  }
-}
-
-/**
- * Placeholder for claiming winnings.
- */
-async function claimWinnings(ammContract, outcomeAsset) {
-  console.log("Claiming winnings using outcome asset", outcomeAsset);
-  // Implement your claim logic here.
-}
-
-/**
  * Deposit collateral (USDC/BTC) and either mint outcome tokens or directly swap collateral for outcome tokens.
  */
 async function depositCollateralAndMintOrSwap(
