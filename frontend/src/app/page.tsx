@@ -265,7 +265,7 @@ const CryptoPoolInterface = () => {
 
                         {/* Create Pool Button */}
                         <button className="w-full py-4 px-6 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-bold tracking-wider shadow-lg transition-colors">
-                            CREATE POOL
+                            SWAP
                         </button>
                     </div>
                 </div>

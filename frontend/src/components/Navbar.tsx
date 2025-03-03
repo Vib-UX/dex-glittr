@@ -44,29 +44,33 @@ const Navbar = () => {
             </div>
 
             <nav className="hidden md:flex ml-32 items-center space-x-1 bg-[#131320] rounded-full border border-[#333333]/50 p-1">
-                {['SWAP', 'CREATE POOL', 'CREATE TOKENS'].map((item, index) => {
-                    const path =
-                        item === 'SWAP'
-                            ? '/'
-                            : item === 'CREATE POOL'
-                            ? '/create-pool'
-                            : '/create-token';
-                    const isActive = pathname === path; // Reactively check current route
+                {['SWAP', 'CREATE POOL', 'CREATE TOKENS', 'TOKENS'].map(
+                    (item, index) => {
+                        const path =
+                            item === 'SWAP'
+                                ? '/'
+                                : item === 'CREATE POOL'
+                                ? '/create-pool'
+                                : item === 'CREATE TOKENS'
+                                ? '/create-token'
+                                : '/tokens';
+                        const isActive = pathname === path; // Reactively check current route
 
-                    return (
-                        <Link
-                            href={path}
-                            key={index}
-                            className={`px-6 py-2 rounded-full text-sm transition-all duration-300 ${
-                                isActive
-                                    ? 'bg-[#8b5cf6] text-white font-bold shadow-lg shadow-[#8b5cf6]/20'
-                                    : 'hover:bg-[#1f1f30]'
-                            }`}
-                        >
-                            {item}
-                        </Link>
-                    );
-                })}
+                        return (
+                            <Link
+                                href={path}
+                                key={index}
+                                className={`px-6 py-2 rounded-full text-sm transition-all duration-300 ${
+                                    isActive
+                                        ? 'bg-[#8b5cf6] text-white font-bold shadow-lg shadow-[#8b5cf6]/20'
+                                        : 'hover:bg-[#1f1f30]'
+                                }`}
+                            >
+                                {item}
+                            </Link>
+                        );
+                    }
+                )}
             </nav>
 
             {connected ? (
@@ -74,7 +78,12 @@ const Navbar = () => {
                     <button className="btn-glow flex items-center gap-1 py-1.5 px-4 bg-[#0A0A0A] rounded-lg">
                         <span>{`${balance.btc.toFixed(4)} BTC`}</span>
                     </button>
-                    <button className="btn-glow flex items-center gap-1 py-1.5 px-4 bg-[#0A0A0A] rounded-lg">
+                    <button
+                        onClick={() => {
+                            navigator.clipboard.writeText(paymentAddress);
+                        }}
+                        className="btn-glow flex items-center gap-1 py-1.5 px-4 bg-[#0A0A0A] rounded-lg cursor-pointer "
+                    >
                         <span className="font-mono">
                             {paymentAddress.slice(0, 6)}...
                             {paymentAddress.slice(-4)}
