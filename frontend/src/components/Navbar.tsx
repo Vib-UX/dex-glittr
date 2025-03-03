@@ -1,10 +1,41 @@
 'use client';
+import { GLITTR, useLaserEyes } from '@glittr-sdk/lasereyes';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import React from 'react';
-
+import { useEffect, useState } from 'react';
 const Navbar = () => {
     const pathname = usePathname();
+    const { connect, connected, paymentAddress, disconnect } = useLaserEyes();
+    const [balance, setBalance] = useState({ btc: 0, sats: 0 });
+    const fetchBalance = async () => {
+        if (!connected) return;
+
+        try {
+            const response = await fetch(
+                `${'https://devnet-electrum.glittr.fi'}/address/${paymentAddress}`
+            );
+            const data = await response.json();
+
+            const funded = data.chain_stats.funded_txo_sum;
+            const spent = data.chain_stats.spent_txo_sum;
+            const balanceSats = funded - spent;
+            const balanceBtc = balanceSats / 100000000;
+
+            setBalance({
+                btc: balanceBtc,
+                sats: balanceSats,
+            });
+        } catch (error) {
+            console.error('Error fetching balance:', error);
+        }
+    };
+
+    useEffect(() => {
+        if (paymentAddress && connected) {
+            fetchBalance();
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [paymentAddress]);
     return (
         <header className="w-full shadow-2xl z-50 flex justify-between items-center px-6 py-4 border-b border-[#333333]/50 backdrop-blur-sm bg-[#1e1c1f] fixed top-0">
             <div className="text-2xl font-bold text-[#9a1dbf] relative">
@@ -12,14 +43,14 @@ const Navbar = () => {
                 <span className="absolute -top-1 -right-4 w-2 h-2 bg-[#8b5cf6] rounded-full animate-pulse"></span>
             </div>
 
-            <nav className="hidden md:flex items-center space-x-1 bg-[#131320] rounded-full border border-[#333333]/50 p-1">
-                {['SWAP', 'CREATE POOL', 'TOKENS'].map((item, index) => {
+            <nav className="hidden md:flex ml-32 items-center space-x-1 bg-[#131320] rounded-full border border-[#333333]/50 p-1">
+                {['SWAP', 'CREATE POOL', 'CREATE TOKENS'].map((item, index) => {
                     const path =
                         item === 'SWAP'
-                            ? '/swap'
+                            ? '/'
                             : item === 'CREATE POOL'
                             ? '/create-pool'
-                            : '/tokens';
+                            : '/create-token';
                     const isActive = pathname === path; // Reactively check current route
 
                     return (
@@ -38,9 +69,41 @@ const Navbar = () => {
                 })}
             </nav>
 
-            <button className="px-6 py-3 bg-[#131320] border border-[#333333]/70 rounded-full text-white font-bold tracking-wide hover:border-[#8b5cf6]/70 hover:shadow-lg hover:shadow-[#8b5cf6]/10 transition-all duration-300">
-                CONNECT WALLET
-            </button>
+            {connected ? (
+                <div className="flex items-center gap-x-6">
+                    <button className="btn-glow flex items-center gap-1 py-1.5 px-4 bg-[#0A0A0A] rounded-lg">
+                        <span>{`${balance.btc.toFixed(4)} BTC`}</span>
+                    </button>
+                    <button className="btn-glow flex items-center gap-1 py-1.5 px-4 bg-[#0A0A0A] rounded-lg">
+                        <span className="font-mono">
+                            {paymentAddress.slice(0, 6)}...
+                            {paymentAddress.slice(-4)}
+                        </span>
+                    </button>
+                    <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        strokeWidth={1.5}
+                        stroke="currentColor"
+                        className="size-6 cursor-pointer"
+                        onClick={disconnect}
+                    >
+                        <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            d="M5.636 5.636a9 9 0 1 0 12.728 0M12 3v9"
+                        />
+                    </svg>
+                </div>
+            ) : (
+                <button
+                    onClick={() => connect(GLITTR)}
+                    className="px-6 py-3 bg-[#131320] cursor-pointer border border-[#333333]/70 rounded-full text-white font-bold tracking-wide hover:border-[#8b5cf6]/70 hover:shadow-lg hover:shadow-[#8b5cf6]/10 transition-all duration-300"
+                >
+                    CONNECT WALLET
+                </button>
+            )}
         </header>
     );
 };

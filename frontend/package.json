@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@glittr-sdk/lasereyes": "^0.0.136",
     "@glittr-sdk/sdk": "^0.29.1",
     "next": "15.2.0",
     "react": "^19.0.0",
