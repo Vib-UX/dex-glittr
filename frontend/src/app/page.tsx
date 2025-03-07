@@ -329,7 +329,7 @@ export default function CreatePool() {
                             } as ContractInfo;
                         })
                 );
-                const last10 = contracts.slice(contracts.length - 10);
+                const last10 = contracts.slice(contracts.length - 25);
                 setContracts(last10);
             } catch (error) {
                 console.error('Error fetching contracts:', error);
