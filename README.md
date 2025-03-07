@@ -1,6 +1,11 @@
 # DEX v0 glittr-fi
 
+[Video Tutorials - Working of Bitcoin DEX](https://drive.google.com/drive/folders/1FbTTDCfGh9uphT-YwtjgbVtiHL-fEUhI?usp=sharing)
+
 ![image](https://github.com/user-attachments/assets/dfa45292-6f68-4147-bc1e-46b207807987)
+
+
+
 
 
 ## Token Creation & Verification
@@ -9,7 +14,7 @@
 - Include a dashboard view with redirects to the Glitterfi explorer for asset verification.
 
 ## Liquidity AMM Contract
-- Develop an AMM contract that pairs a specified amount of MOA with native BTC.
+- Develop an AMM contract that pairs a specified amount of MOAs/MBAs vice versa.
 - Implement the constant product market maker formula (x * y = k) for pool operations.
 - Track each pool by monitoring the token supply within the AMM contract, which influences pricing.
 
