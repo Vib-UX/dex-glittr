@@ -152,11 +152,16 @@ export default function CreatePool() {
             const txHex = finalizedPsbt.extractTransaction(true).toHex();
             const txid = await client.broadcastTx(txHex);
             setAmContract(txid);
-            setTimeout(async () => {
-                const message = await client.getGlittrMessageByTxId(txid);
-                setBlockTuble(message.block_tx);
-                await depositLiquidity(message.block_tx);
-            }, 30000);
+            while (true) {
+                try {
+                    const message = await client.getGlittrMessageByTxId(txid);
+                    setBlockTuble(message.block_tx);
+                    break;
+                } catch {
+                    await new Promise((resolve) => setTimeout(resolve, 5000)); // Retry every 5 seconds
+                }
+            }
+            await depositLiquidity(blockTuble);
         } catch (error) {
             setLoading(false);
             console.error('Error creating pool:', error);
@@ -170,7 +175,7 @@ export default function CreatePool() {
     const [contracts, setContracts] = useState<ContractInfo[] | null>(null);
 
     const depositLiquidity = async (blockId: string): Promise<void> => {
-        if (!account || !firstTokenSelected) {
+        if (!account || !firstTokenSelected || !secondTokenSelected) {
             return;
         }
         try {
@@ -179,24 +184,23 @@ export default function CreatePool() {
                 client,
                 paymentAddress
             );
-            const contractInfo = await client.getGlittrMessage(
-                contract[0],
-                contract[1]
-            );
-            const firstContract: BlockTxTuple =
-                contractInfo.message.message.contract_creation.contract_type.mba
-                    .mint_mechanism.collateralized.input_assets[0].glittr_asset;
 
-            const secondContract: BlockTxTuple =
-                contractInfo.message.message.contract_creation.contract_type.mba
-                    .mint_mechanism.collateralized.input_assets[1].glittr_asset;
+            const firstContract: BlockTxTuple = [
+                parseInt(firstTokenSelected.contractId.slice(0, 7)),
+                1,
+            ];
+
+            const secondContract: BlockTxTuple = [
+                parseInt(secondTokenSelected.contractId.slice(0, 7)),
+                1,
+            ];
             const inputAssetsFirst = await client.getAssetUtxos(
                 paymentAddress,
-                `${firstContract[0]}:${firstContract[1]}`
+                `${parseInt(firstTokenSelected.contractId.slice(0, 7))}:${1}`
             );
             const inputAssetsSecond = await client.getAssetUtxos(
                 paymentAddress,
-                `${secondContract[0]}:${secondContract[1]}`
+                `${parseInt(secondTokenSelected.contractId.slice(0, 7))}:${1}`
             );
             const nonFeeInputs: BitcoinUTXO[] = [
                 ...inputAssetsFirst,
@@ -216,12 +220,12 @@ export default function CreatePool() {
                         {
                             asset: firstContract,
                             output: 1,
-                            amount: firstContract.toString(),
+                            amount: firstTokenAmount.toString(),
                         },
                         {
                             asset: secondContract,
                             output: 1,
-                            amount: firstContract.toString(),
+                            amount: firstTokenAmount.toString(),
                         },
                     ],
                 },
@@ -349,7 +353,6 @@ export default function CreatePool() {
         setSecondTokenSelected(token);
         setShowSecondDropdown(false);
     };
-
     return (
         <>
             {isOpen && (

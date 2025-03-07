@@ -209,12 +209,13 @@ async function depositLiquidity(
         {
           asset: TokenAContract,
           output: 1,
-          amount: (totalTokenA - depositAmount).toString(),
+
+          amount: (10).toString(),
         },
         {
           asset: TokenBContract,
           output: 1,
-          amount: (totalTokenB - depositAmount).toString(),
+          amount: (10).toString(),
         },
       ],
     },
