@@ -1,8 +1,11 @@
 'use client';
+
 import { GLITTR, useLaserEyes } from '@glittr-sdk/lasereyes';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import toast from 'react-hot-toast';
+import { toastStyles } from './helpers';
 const Navbar = () => {
     const pathname = usePathname();
     const { connect, connected, paymentAddress, disconnect } = useLaserEyes();
@@ -80,6 +83,10 @@ const Navbar = () => {
                     </button>
                     <button
                         onClick={() => {
+                            toast.success(
+                                'Address copied to clipboard',
+                                toastStyles
+                            );
                             navigator.clipboard.writeText(paymentAddress);
                         }}
                         className="btn-glow flex items-center gap-1 py-1.5 px-4 bg-[#0A0A0A] rounded-lg cursor-pointer "

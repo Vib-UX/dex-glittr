@@ -1,6 +1,5 @@
 'use client';
 import React, { useState } from 'react';
-
 const CryptoPoolInterface = () => {
     const [firstTokenAmount, setFirstTokenAmount] = useState('0.00');
     const [secondTokenAmount, setSecondTokenAmount] = useState('0.00');

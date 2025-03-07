@@ -1,12 +1,13 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-type ContractInfo = {
+export type ContractInfo = {
     ticker: string;
     contractId: string;
     supply: string;
     amountPerMint: string;
 };
+
 const TokensTable = () => {
     const [contracts, setContracts] = useState<ContractInfo[] | null>(null);
 

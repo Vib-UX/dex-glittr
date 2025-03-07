@@ -8,6 +8,8 @@ import { useState } from 'react';
 import toast from 'react-hot-toast';
 import { FaGlobe, FaTelegram, FaTwitter } from 'react-icons/fa';
 import { client, NETWORK } from '../Provider';
+import { toastStyles } from '@/components/helpers';
+
 type ContractInfo = {
     ticker: string;
     contractId: string;
@@ -76,7 +78,7 @@ export default function CreateToken() {
             const txHex = finalizedPsbt.extractTransaction(true).toHex();
             const txid = await client.broadcastTx(txHex);
             console.log('contract created:', txid);
-            toast.success('Token created successfully');
+            toast.success('Token created successfully', toastStyles);
             useGlobalStore.getState().setTokens({
                 id: tokens.length + 1,
                 icon: '🔥',
@@ -92,7 +94,7 @@ export default function CreateToken() {
             handleMinting();
         } catch (e) {
             setTokenLoader(false);
-            toast.error('Failed to create token');
+            toast.error('Failed to create token', toastStyles);
             console.log(e);
         }
     };
@@ -183,7 +185,7 @@ export default function CreateToken() {
                 // to broadcast bitcoin transaction
                 const id = await client.broadcastTx(newHex);
                 setExpLink(id);
-                toast.success('Tokens minted successfully');
+                toast.success('Tokens minted successfully', toastStyles);
                 setIsOpen(true);
                 setMintingState(false);
             }
@@ -266,7 +268,7 @@ export default function CreateToken() {
                     >
                         <div className="absolute inset-0 w-1/3 h-full bg-white/10 transform -skew-x-12 -translate-x-full group-hover:translate-x-[400%] transition-transform duration-1000"></div>
                         {mintingState ? (
-                            <div className="flex items-center gap-x-2 items-center justify-center">
+                            <div className="flex items-center gap-x-2 justify-center">
                                 <div>MINTING TOKEN, PLEASE WAIT</div>
                                 <div role="status">
                                     <svg
@@ -289,7 +291,7 @@ export default function CreateToken() {
                                 </div>
                             </div>
                         ) : tokenLoader ? (
-                            <div className="flex items-center gap-x-2 items-center justify-center">
+                            <div className="flex items-center gap-x-2 justify-center">
                                 <div>CREATING TOKEN, PLEASE WAIT</div>
                                 <div role="status">
                                     <svg
