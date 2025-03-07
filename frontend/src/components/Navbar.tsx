@@ -6,6 +6,8 @@ import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import { toastStyles } from './helpers';
+import dexIcon from '../../public/assets/icon.png';
+import Image from 'next/image';
 const Navbar = () => {
     const pathname = usePathname();
     const { connect, connected, paymentAddress, disconnect } = useLaserEyes();
@@ -41,35 +43,56 @@ const Navbar = () => {
     }, [paymentAddress]);
     return (
         <header className="w-full shadow-2xl z-50 flex justify-between items-center px-6 py-4 border-b border-[#333333]/50 backdrop-blur-sm bg-[#1e1c1f] fixed top-0">
-            <div className="text-2xl font-bold text-[#9a1dbf] relative">
+            <div className="text-2xl font-bold text-[#9a1dbf] relative flex items-center gap-2">
+                <Image
+                    src={dexIcon}
+                    alt="icon"
+                    className="size-14 rounded-xl"
+                />
                 <span className="tracking-wider">Glittr DEX</span>
                 <span className="absolute -top-1 -right-4 w-2 h-2 bg-[#8b5cf6] rounded-full animate-pulse"></span>
             </div>
 
             <nav className="hidden md:flex ml-32 items-center space-x-1 bg-[#131320] rounded-full border border-[#333333]/50 p-1">
-                {['SWAP', 'CREATE POOL', 'CREATE TOKENS', 'TOKENS'].map(
+                {['CREATE POOL', 'CREATE TOKENS', 'TOKENS', 'SWAP'].map(
                     (item, index) => {
                         const path =
-                            item === 'SWAP'
+                            item === 'CREATE POOL'
                                 ? '/'
-                                : item === 'CREATE POOL'
-                                ? '/create-pool'
                                 : item === 'CREATE TOKENS'
                                 ? '/create-token'
-                                : '/tokens';
+                                : item === 'TOKENS'
+                                ? '/tokens'
+                                : '';
                         const isActive = pathname === path; // Reactively check current route
 
                         return (
                             <Link
                                 href={path}
                                 key={index}
-                                className={`px-6 py-2 rounded-full text-sm transition-all duration-300 ${
+                                className={`flex items-center justify-center gap-x-2 px-6 py-2 rounded-full text-sm transition-all duration-300 ${
                                     isActive
                                         ? 'bg-[#8b5cf6] text-white font-bold shadow-lg shadow-[#8b5cf6]/20'
                                         : 'hover:bg-[#1f1f30]'
                                 }`}
                             >
                                 {item}
+                                {path === '' && (
+                                    <svg
+                                        xmlns="http://www.w3.org/2000/svg"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                        strokeWidth={1.5}
+                                        stroke="currentColor"
+                                        className="size-4"
+                                    >
+                                        <path
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z"
+                                        />
+                                    </svg>
+                                )}
                             </Link>
                         );
                     }

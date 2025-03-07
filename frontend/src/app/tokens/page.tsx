@@ -96,41 +96,7 @@ const TokensTable = () => {
                             </tr>
                         </thead>
                         <tbody>
-                            {/* {tokens.map((token, index) => (
-                                <tr
-                                    onClick={() => window.open(token.link)}
-                                    key={token.id}
-                                    className={`border-b border-gray-800 hover:bg-gray-900 transition-colors cursor-pointer ${
-                                        index % 2 !== 0
-                                            ? 'bg-[#131320] bg-opacity-30'
-                                            : ''
-                                    }`}
-                                >
-                                    <td className="px-6 py-4">{token.id}</td>
-                                    <td className="px-6 py-4 flex items-center space-x-2">
-                                        <span className="text-lg">
-                                            {token.icon}
-                                        </span>
-                                        <span>{token.name}</span>
-                                    </td>
-                                    <td className="px-6 py-4">
-                                        {token.tokenId}
-                                    </td>
-                                    <td className="px-6 py-4">
-                                        {token.minted}
-                                    </td>
-                                    <td className="px-6 py-4">
-                                        {token.divisibility}
-                                    </td>
-                                    <td className="px-6 py-4">
-                                        {token.maxSupply}
-                                    </td>
-                                    <td className="px-6 py-4">
-                                        {token.timestamp}
-                                    </td>
-                                </tr>
-                            ))} */}
-                            {contracts &&
+                            {contracts ? (
                                 contracts.map((contract, index) => (
                                     <tr
                                         key={index}
@@ -155,7 +121,21 @@ const TokensTable = () => {
                                             ).toLocaleString()}{' '}
                                         </td>
                                     </tr>
-                                ))}
+                                ))
+                            ) : (
+                                <div
+                                    role="status"
+                                    className="w-[900px] animate-pulse p-6"
+                                >
+                                    <div className="h-2.5 my-6 bg-gray-200 rounded-full dark:bg-gray-700 w-48 mb-4"></div>
+                                    <div className="h-2 my-6 bg-gray-200 rounded-full dark:bg-gray-700  mb-2.5"></div>
+                                    <div className="h-2 my-6 bg-gray-200 rounded-full dark:bg-gray-700 mb-2.5"></div>
+                                    <div className="h-2 my-6 bg-gray-200 rounded-full dark:bg-gray-700  mb-2.5"></div>
+                                    <div className="h-2 my-6 bg-gray-200 rounded-full dark:bg-gray-700  mb-2.5"></div>
+                                    <div className="h-2 my-6 bg-gray-200 rounded-full dark:bg-gray-700 "></div>
+                                    <span className="sr-only">Loading...</span>
+                                </div>
+                            )}
                         </tbody>
                     </table>
                 </div>
