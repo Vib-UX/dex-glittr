@@ -131,7 +131,7 @@ export default function CreatePool() {
                     </a>
                 </div>
                 <p className="text-sm tracking-wider opacity-70">
-                    © 2025 RUNES DEX. All rights reserved.
+                    © 2025 Glittr DEX. All rights reserved.
                 </p>
             </footer>
         </div>

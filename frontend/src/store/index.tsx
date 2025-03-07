@@ -44,7 +44,7 @@ const useGlobalStore = create<GlobalStore>()((set) => ({
         {
             id: 3,
             icon: '⟠',
-            name: 'RUNES ELITERS',
+            name: 'Glittr ELITERS',
             tokenId: '3',
             minted: '50,000',
             divisibility: 6,

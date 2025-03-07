@@ -39,7 +39,7 @@ const Navbar = () => {
     return (
         <header className="w-full shadow-2xl z-50 flex justify-between items-center px-6 py-4 border-b border-[#333333]/50 backdrop-blur-sm bg-[#1e1c1f] fixed top-0">
             <div className="text-2xl font-bold text-[#9a1dbf] relative">
-                <span className="tracking-wider">RUNES DEX</span>
+                <span className="tracking-wider">Glittr DEX</span>
                 <span className="absolute -top-1 -right-4 w-2 h-2 bg-[#8b5cf6] rounded-full animate-pulse"></span>
             </div>
 

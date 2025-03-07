@@ -1,10 +1,63 @@
 'use client';
 
-import useGlobalStore from '@/store';
-
+import { useEffect, useState } from 'react';
+type ContractInfo = {
+    ticker: string;
+    contractId: string;
+    supply: string;
+    amountPerMint: string;
+};
 const TokensTable = () => {
-    const { tokens } = useGlobalStore();
+    const [contracts, setContracts] = useState<ContractInfo[] | null>(null);
 
+    useEffect(() => {
+        // Fetch and process the list of deployed Glittr asset contracts
+        const run = async () => {
+            // API to get list of assets
+            const res = await fetch(
+                `${'https://devnet-core-api.glittr.fi'}/helper/assets`
+            );
+            const listContractRaw = await res.json();
+
+            // Filter to only include Freemint asset contracts
+            const contracts = await Promise.all(
+                Object.keys(listContractRaw.result)
+                    .filter((contractId: string) => {
+                        const contractInfo = listContractRaw.result[contractId];
+
+                        if (contractInfo.type) {
+                            return contractInfo.type.free_mint == true;
+                        } else {
+                            return false;
+                        }
+                    })
+                    .map(async (contractId: string) => {
+                        // Fetch asset contract metadata to get the amount_per_mint
+                        const contractInfo = listContractRaw.result[contractId];
+                        const result = await (
+                            await fetch(
+                                `${'https://devnet-core-api.glittr.fi'}/blocktx/${
+                                    contractId.split(':')[0]
+                                }/${contractId.split(':')[1]}`
+                            )
+                        ).json();
+                        return {
+                            ticker: contractInfo.ticker ?? '',
+                            contractId: contractId,
+                            supply: `${contractInfo.total_supply}/${contractInfo.supply_cap}`,
+                            amountPerMint:
+                                result.message.message.contract_creation
+                                    .contract_type.moa.mint_mechanism.free_mint
+                                    .amount_per_mint,
+                        };
+                    })
+            );
+            const last10 = contracts.slice(contracts.length - 10);
+            setContracts(last10);
+        };
+
+        run();
+    }, []);
     return (
         <div className="min-h-screen bg-[#1e1c1f] text-white">
             {/* Diagonal pattern background */}
@@ -39,13 +92,10 @@ const TokensTable = () => {
                                 <th className="px-6 py-3">Token Name</th>
                                 <th className="px-6 py-3">ID</th>
                                 <th className="px-6 py-3">Minted</th>
-                                <th className="px-6 py-3">Divisibility</th>
-                                <th className="px-6 py-3">Max Supply</th>
-                                <th className="px-6 py-3">Timestamp</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {tokens.map((token, index) => (
+                            {/* {tokens.map((token, index) => (
                                 <tr
                                     onClick={() => window.open(token.link)}
                                     key={token.id}
@@ -78,7 +128,33 @@ const TokensTable = () => {
                                         {token.timestamp}
                                     </td>
                                 </tr>
-                            ))}
+                            ))} */}
+                            {contracts &&
+                                contracts.map((contract, index) => (
+                                    <tr
+                                        key={index}
+                                        className={`border-b border-gray-800 hover:bg-gray-900 transition-colors cursor-pointer ${
+                                            index % 2 !== 0
+                                                ? 'bg-[#131320] bg-opacity-30'
+                                                : ''
+                                        }`}
+                                    >
+                                        <td className="px-6 py-4">
+                                            ID: {contract.contractId}
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            {contract.ticker}
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            {contract.supply}
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            {Number(
+                                                contract.amountPerMint
+                                            ).toLocaleString()}{' '}
+                                        </td>
+                                    </tr>
+                                ))}
                         </tbody>
                     </table>
                 </div>
