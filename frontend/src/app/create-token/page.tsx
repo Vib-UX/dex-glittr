@@ -139,16 +139,14 @@ export default function CreateToken() {
         const filteredContracts = contracts.filter(
             (elem) => elem.ticker.toLowerCase() === tokenName.toLowerCase()
         );
+        setAssetLink(filteredContracts[0].contractId);
 
         return filteredContracts;
     };
-    const handleMinting = () => {
+
+    const handleMinting = async () => {
         setMintingState(true);
         setTimeout(async () => {
-            const message = await client.getGlittrMessageByTxId(
-                assetLinkContract
-            );
-            setAssetLink(message.block_tx);
             const con = await run();
             await mint(con[0]);
         }, 30000);
