@@ -1,20 +1,18 @@
 import { Button, Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
 import Image from 'next/image';
 import animations from '../../public/assets/animations/success.gif';
-export default function MyModal({
+export default function TokenModal({
     isOpen,
     setIsOpen,
     link,
-    blockTuble,
-    depositLink,
-    blockDepositeLink,
+    assetLink,
+    assetLinkContract,
 }: {
     isOpen: boolean;
     setIsOpen: (value: boolean) => void;
     link: string;
-    blockTuble: string;
-    depositLink: string;
-    blockDepositeLink: string;
+    assetLinkContract: string;
+    assetLink: string;
 }) {
     function close() {
         setIsOpen(false);
@@ -36,7 +34,7 @@ export default function MyModal({
                             as="h3"
                             className="text-base/7 font-medium text-white"
                         >
-                            Pool creation successful
+                            Token creation successful
                         </DialogTitle>
                         <Image
                             src={animations}
@@ -44,9 +42,28 @@ export default function MyModal({
                             className="mx-auto"
                         />
                         <p className="mt-2 text-sm/6 text-white/50">
-                            Wohoo! You have successfully created a pool.
+                            Wohoo! You have successfully created a token.
                         </p>
-                        <div className="pt-4 underline">AMM</div>
+                        <div className="pt-4 underline">Asset</div>
+                        <div className="flex items-center justify-between">
+                            <a
+                                href={`https://explorer.glittr.fi/tx/${assetLinkContract}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="mb-4 text-sm/6 text-white/50 hover:underline"
+                            >
+                                View transaction
+                            </a>
+                            <a
+                                href={`https://explorer.glittr.fi/tx/${assetLink}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="mb-4 text-sm/6 text-white/50 hover:underline"
+                            >
+                                View contract
+                            </a>
+                        </div>
+                        <div className="underline">Minted</div>
                         <div className="flex items-center justify-between">
                             <a
                                 href={`https://explorer.glittr.fi/tx/${link}`}
@@ -55,33 +72,6 @@ export default function MyModal({
                                 className="mb-4 text-sm/6 text-white/50 hover:underline"
                             >
                                 View transaction
-                            </a>
-                            <a
-                                href={`https://explorer.glittr.fi/tx/${blockTuble}`}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="mb-4 text-sm/6 text-white/50 hover:underline"
-                            >
-                                View contract
-                            </a>
-                        </div>
-                        <div className="underline">Deposite liquidity</div>
-                        <div className="flex items-center justify-between">
-                            <a
-                                href={`https://explorer.glittr.fi/tx/${depositLink}`}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="mb-4 text-sm/6 text-white/50 hover:underline"
-                            >
-                                View transaction
-                            </a>
-                            <a
-                                href={`https://explorer.glittr.fi/tx/${blockDepositeLink}`}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="mb-4 text-sm/6 text-white/50 hover:underline"
-                            >
-                                View contract
                             </a>
                         </div>
                         <div className="mt-4">

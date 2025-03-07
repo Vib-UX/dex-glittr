@@ -11,8 +11,9 @@ import { sha256 } from "bitcoinjs-lib/src/crypto.js";
 
 const NETWORK = "regtest";
 const API_KEY = "ccc80ba0-e813-41ed-8a62-1ea0560688e7";
-const WIF = "cW84FgWG9U1MpKvdzZMv4JZKLSU7iFAzMmXjkGvGUvh5WvhrEASj";
 // const WIF = "cTFZ5Bm9euMZWcAxZEmCXKr228WFY37QSsU9TgSZ65SAt4QTUhWU";
+// const WIF = "cW84FgWG9U1MpKvdzZMv4JZKLSU7iFAzMmXjkGvGUvh5WvhrEASj";
+const WIF = "cV1FXVMqFfjcaouxsyw1cuuxd86GrKj68sjDdkaNmYfjoMzsZKnv";
 
 // Initialize the Glittr client and our account.
 const client = new GlittrSDK({

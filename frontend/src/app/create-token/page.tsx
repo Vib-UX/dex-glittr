@@ -1,5 +1,6 @@
 'use client';
-import MyModal from '@/components/modal';
+import { toastStyles } from '@/components/helpers';
+import TokenModal from '@/components/tokenModal';
 import useGlobalStore from '@/store';
 import { useLaserEyes } from '@glittr-sdk/lasereyes';
 import { txBuilder } from '@glittr-sdk/sdk';
@@ -8,7 +9,6 @@ import { useState } from 'react';
 import toast from 'react-hot-toast';
 import { FaGlobe, FaTelegram, FaTwitter } from 'react-icons/fa';
 import { client, NETWORK } from '../Provider';
-import { toastStyles } from '@/components/helpers';
 
 type ContractInfo = {
     ticker: string;
@@ -21,6 +21,8 @@ export default function CreateToken() {
         useLaserEyes();
     const [tokenName, setTokenName] = useState('');
     const [tokenLoader, setTokenLoader] = useState(false);
+    const [assetLink, setAssetLink] = useState('');
+    const [assetLinkContract, setAssetLinkContract] = useState('');
     const [isOpen, setIsOpen] = useState(false);
     const [mintSupply, setMintSupply] = useState('');
     const [supply, setSupply] = useState('');
@@ -70,14 +72,14 @@ export default function CreateToken() {
 
             const tokenResult = await signPsbt(tokenPsbt.toHex(), false, false);
             if (!tokenResult?.signedPsbtHex) {
-                throw new Error('Failed to sign YES transaction');
+                throw new Error('Failed to sign transaction');
             }
 
             const finalizedPsbt = Psbt.fromHex(tokenResult.signedPsbtHex);
             finalizedPsbt.finalizeAllInputs();
             const txHex = finalizedPsbt.extractTransaction(true).toHex();
             const txid = await client.broadcastTx(txHex);
-            console.log('contract created:', txid);
+            setAssetLinkContract(txid);
             toast.success('Token created successfully', toastStyles);
             useGlobalStore.getState().setTokens({
                 id: tokens.length + 1,
@@ -143,6 +145,10 @@ export default function CreateToken() {
     const handleMinting = () => {
         setMintingState(true);
         setTimeout(async () => {
+            const message = await client.getGlittrMessageByTxId(
+                assetLinkContract
+            );
+            setAssetLink(message.block_tx);
             const con = await run();
             await mint(con[0]);
         }, 30000);
@@ -197,7 +203,13 @@ export default function CreateToken() {
     return (
         <>
             {isOpen && (
-                <MyModal isOpen={isOpen} setIsOpen={setIsOpen} link={expLink} />
+                <TokenModal
+                    isOpen={isOpen}
+                    setIsOpen={setIsOpen}
+                    link={expLink}
+                    assetLinkContract={assetLinkContract}
+                    assetLink={assetLink}
+                />
             )}
             <div className="min-h-screen bg-[#1e1c1f] text-white font-mono relative overflow-hidden">
                 <div className="absolute inset-0 overflow-hidden pointer-events-none">

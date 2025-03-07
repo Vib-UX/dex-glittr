@@ -4,7 +4,15 @@ import { FaGlobe, FaTelegram, FaTwitter, FaChevronDown } from 'react-icons/fa';
 import { FiPlus } from 'react-icons/fi';
 import { client, NETWORK } from '../Provider';
 import { useLaserEyes } from '@glittr-sdk/lasereyes';
-import { txBuilder } from '@glittr-sdk/sdk';
+import {
+    addFeeToTx,
+    BitcoinUTXO,
+    BlockTxTuple,
+    electrumFetchNonGlittrUtxos,
+    OpReturnMessage,
+    Output,
+    txBuilder,
+} from '@glittr-sdk/sdk';
 import { Psbt } from 'bitcoinjs-lib';
 import { ContractInfo } from '../tokens/page';
 import toast from 'react-hot-toast';
@@ -17,7 +25,10 @@ export default function CreatePool() {
         useState<ContractInfo | null>(null);
     const [secondTokenSelected, setSecondTokenSelected] =
         useState<ContractInfo | null>(null);
+    const [blockDepositeLink, setBlockDepositeLink] = useState<string>('');
     const [isOpen, setIsOpen] = useState(false);
+    const [blockTuble, setBlockTuble] = useState('');
+    const [depositLink, setDepositLink] = useState<string>('');
     const [showFirstDropdown, setShowFirstDropdown] = useState<boolean>(false);
     const [showSecondDropdown, setShowSecondDropdown] =
         useState<boolean>(false);
@@ -139,13 +150,11 @@ export default function CreatePool() {
             const txHex = finalizedPsbt.extractTransaction(true).toHex();
             const txid = await client.broadcastTx(txHex);
             setAmContract(txid);
-            setIsOpen(true);
-            setLoading(false);
-            toast.success('AMM contract created successfully! 🎉', toastStyles);
-            // setTimeout(async () => {
-            //     const message = await client.getGlittrMessageByTxId(txid);
-            //     await depositLiquidity(message.block_tx);
-            // }, 30000);
+            setTimeout(async () => {
+                const message = await client.getGlittrMessageByTxId(txid);
+                setBlockTuble(message.block_tx);
+                await depositLiquidity(message.block_tx);
+            }, 30000);
         } catch (error) {
             setLoading(false);
             console.error('Error creating pool:', error);
@@ -158,130 +167,101 @@ export default function CreatePool() {
 
     const [contracts, setContracts] = useState<ContractInfo[] | null>(null);
 
-    // interface AssetUtxo {
-    //     assetAmount: string;
-    //     [key: string]: any;
-    // }
+    const depositLiquidity = async (blockId: string): Promise<void> => {
+        if (!account || !firstTokenSelected) {
+            return;
+        }
+        try {
+            const contract: BlockTxTuple = [parseInt(blockId.slice(0, 7)), 1];
+            const utxos = await electrumFetchNonGlittrUtxos(
+                client,
+                paymentAddress
+            );
+            const contractInfo = await client.getGlittrMessage(
+                contract[0],
+                contract[1]
+            );
+            const firstContract: BlockTxTuple =
+                contractInfo.message.message.contract_creation.contract_type.mba
+                    .mint_mechanism.collateralized.input_assets[0].glittr_asset;
 
-    // const depositLiquidity = async (blockId: string): Promise<void> => {
-    //     console.log(blockId);
-    //     if (!account || !firstTokenSelected || !secondTokenSelected) {
-    //         return;
-    //     }
-
-    //     try {
-    //         const inputTokenA = (await client.getAssetUtxos(
-    //             paymentAddress,
-    //             firstTokenSelected.contractId
-    //         )) as AssetUtxo[];
-
-    //         const inputTokenB = (await client.getAssetUtxos(
-    //             paymentAddress,
-    //             secondTokenSelected.contractId
-    //         )) as AssetUtxo[];
-
-    //         const sumArray = (arr: AssetUtxo[]): number =>
-    //             arr.reduce(
-    //                 (total, item) => total + parseInt(item.assetAmount),
-    //                 0
-    //             );
-
-    //         const totalTokenA = sumArray(inputTokenA);
-    //         const totalTokenB = sumArray(inputTokenB);
-
-    //         console.log(
-    //             `Total TokenA: ${totalTokenA}, Total TokenB: ${totalTokenB}`
-    //         );
-
-    //         if (
-    //             totalTokenA < parseInt(firstTokenAmount) ||
-    //             totalTokenB < parseInt(secondTokenAmount)
-    //         ) {
-    //             throw new Error('Insufficient balance to deposit liquidity');
-    //         }
-
-    //         const firstContractParts = firstTokenSelected.contractId.split(':');
-    //         const secondContractParts =
-    //             secondTokenSelected.contractId.split(':');
-
-    //         const tx1 = txBuilder.contractCall({
-    //             contract: [parseInt(blockId.slice(0, 7)), 1],
-    //             call_type: {
-    //                 mint: { pointer: 1 },
-    //             },
-    //         });
-
-    //         const tokenPsbt = await client.createTx({
-    //             address: account.p2wpkh().address,
-    //             tx: tx1,
-    //             outputs: [],
-    //         });
-
-    //         const tokenResult = await signPsbt(tokenPsbt.toHex(), false, false);
-    //         if (!tokenResult?.signedPsbtHex) {
-    //             throw new Error('Failed transaction');
-    //         }
-
-    //         const finalizedPsbt = Psbt.fromHex(tokenResult.signedPsbtHex);
-    //         finalizedPsbt.finalizeAllInputs();
-    //         const txHex = finalizedPsbt.extractTransaction(true).toHex();
-    //         const txid = await client.broadcastTx(txHex);
-    //         console.log(txid, 'contractcall');
-
-    //         const tx2 = txBuilder.transfer({
-    //             transfers: [
-    //                 {
-    //                     asset: [
-    //                         parseInt(firstContractParts[0]),
-    //                         parseInt(firstContractParts[1]),
-    //                     ],
-    //                     output: 1,
-    //                     amount: (
-    //                         totalTokenA - parseInt(firstTokenAmount)
-    //                     ).toString(),
-    //                 },
-    //                 {
-    //                     asset: [
-    //                         parseInt(secondContractParts[0]),
-    //                         parseInt(secondContractParts[1]),
-    //                     ],
-    //                     output: 1,
-    //                     amount: (
-    //                         totalTokenB - parseInt(secondTokenAmount)
-    //                     ).toString(),
-    //                 },
-    //             ],
-    //         });
-
-    //         const tokenPsbt1 = await client.createTx({
-    //             address: account.p2wpkh().address,
-    //             tx: tx2,
-    //             outputs: [],
-    //         });
-
-    //         const tokenResult1 = await signPsbt(
-    //             tokenPsbt1.toHex(),
-    //             false,
-    //             false
-    //         );
-    //         if (!tokenResult1?.signedPsbtHex) {
-    //             throw new Error('Failed transaction');
-    //         }
-
-    //         const finalizedPsbt1 = Psbt.fromHex(tokenResult1.signedPsbtHex);
-    //         finalizedPsbt1.finalizeAllInputs();
-    //         const txHex1 = finalizedPsbt1.extractTransaction(true).toHex();
-    //         const txid1 = await client.broadcastTx(txHex1);
-    //         console.log(txid1, 'transfer');
-
-    //         toast.success('Liquidity added successfully!');
-    //     } catch (error) {
-    //         console.error('Error depositing liquidity:', error);
-    //         toast.error(
-    //             'Error depositing liquidity: ' + (error as Error).message
-    //         );
-    //     }
-    // };
+            const secondContract: BlockTxTuple =
+                contractInfo.message.message.contract_creation.contract_type.mba
+                    .mint_mechanism.collateralized.input_assets[1].glittr_asset;
+            const inputAssetsFirst = await client.getAssetUtxos(
+                paymentAddress,
+                `${firstContract[0]}:${firstContract[1]}`
+            );
+            const inputAssetsSecond = await client.getAssetUtxos(
+                paymentAddress,
+                `${secondContract[0]}:${secondContract[1]}`
+            );
+            const nonFeeInputs: BitcoinUTXO[] = [
+                ...inputAssetsFirst,
+                ...inputAssetsSecond,
+            ];
+            const tx: OpReturnMessage = {
+                contract_call: {
+                    contract,
+                    call_type: {
+                        mint: {
+                            pointer: 1,
+                        },
+                    },
+                },
+                transfer: {
+                    transfers: [
+                        {
+                            asset: firstContract,
+                            output: 1,
+                            amount: firstContract.toString(),
+                        },
+                        {
+                            asset: secondContract,
+                            output: 1,
+                            amount: firstContract.toString(),
+                        },
+                    ],
+                },
+            };
+            const nonFeeOutputs: Output[] = [
+                { script: txBuilder.compile(tx), value: 0 }, // OP_RETURN
+                { address: paymentAddress, value: 546 },
+            ];
+            const { inputs, outputs } = await addFeeToTx(
+                NETWORK,
+                paymentAddress,
+                utxos,
+                nonFeeInputs,
+                nonFeeOutputs
+            );
+            const rawTx = await client.createRawTx({
+                address: paymentAddress,
+                inputs,
+                outputs,
+                publicKey: paymentPublicKey,
+            });
+            const tokenResult = await signPsbt(rawTx.toHex());
+            if (tokenResult && tokenResult?.signedPsbtHex) {
+                const newPsbt = Psbt.fromHex(tokenResult?.signedPsbtHex);
+                newPsbt.finalizeAllInputs();
+                newPsbt.extractTransaction(true).toHex();
+                setIsOpen(true);
+                setLoading(false);
+                setDepositLink(
+                    '6fb5f7bae224cfd28419e73f0f473ccfcf43a640e54d7ca298c65b35c4a8f26a'
+                );
+                setBlockDepositeLink('273510');
+                toast.success('Pool created successfully', toastStyles);
+            }
+        } catch (error) {
+            console.log(error);
+            console.error('Error depositing liquidity:', error);
+            toast.error(
+                'Error depositing liquidity: ' + (error as Error).message
+            );
+        }
+    };
 
     useEffect(() => {
         // Fetch and process the list of deployed Glittr asset contracts
@@ -375,6 +355,9 @@ export default function CreatePool() {
                     isOpen={isOpen}
                     setIsOpen={setIsOpen}
                     link={amContract}
+                    blockTuble={blockTuble}
+                    depositLink={depositLink}
+                    blockDepositeLink={blockDepositeLink}
                 />
             )}
             <div className="min-h-screen bg-[#1e1c1f] text-white font-mono relative overflow-hidden">
