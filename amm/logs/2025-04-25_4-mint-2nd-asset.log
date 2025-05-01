@@ -1,0 +1,46 @@
+[2025-04-25T18:12:36.268Z] [4-mint-2nd-asset.ts] Starting mint operation for GLT-DEX2...
+[2025-04-25T18:12:43.930Z] [4-mint-2nd-asset.ts] TXID : f54f21604a63a7f063253f28f215c8380bcf675bbcc40f910be9adb5739cea47
+[2025-04-25T18:12:43.931Z] [4-mint-2nd-asset.ts] [+] Waiting to be mined
+[2025-04-25T18:13:13.234Z] [4-mint-2nd-asset.ts] Mined! Response: {
+  "block_tx": "343426:1",
+  "is_valid": true,
+  "message": {
+    "flaw": null,
+    "message": {
+      "contract_call": {
+        "call_type": {
+          "mint": {
+            "pointer": 1
+          }
+        },
+        "contract": [
+          343418,
+          1
+        ]
+      }
+    }
+  }
+}
+[2025-04-25T18:35:46.028Z] [4-mint-2nd-asset.ts] Starting mint operation for GLTT-DEX-2...
+[2025-04-25T18:35:53.505Z] [4-mint-2nd-asset.ts] TXID : 6dd5db3dcad2e2f797146060f6c3b847a6d8908a637249a890400c7fdececef7
+[2025-04-25T18:35:53.506Z] [4-mint-2nd-asset.ts] [+] Waiting to be mined
+[2025-04-25T18:36:26.395Z] [4-mint-2nd-asset.ts] Mined! Response: {
+  "block_tx": "343449:1",
+  "is_valid": true,
+  "message": {
+    "flaw": null,
+    "message": {
+      "contract_call": {
+        "call_type": {
+          "mint": {
+            "pointer": 1
+          }
+        },
+        "contract": [
+          343447,
+          1
+        ]
+      }
+    }
+  }
+}

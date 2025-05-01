@@ -1,0 +1,60 @@
+[2025-04-25T18:04:59.984Z] [2-create-2nd-asset.ts] Starting free mint contract deployment...
+[2025-04-25T18:05:03.412Z] [2-create-2nd-asset.ts] TXID : cb638af78f25362be08cecd8d1fa5f25d6457e996d8f8dec44d3482fe7f76b45
+[2025-04-25T18:05:03.412Z] [2-create-2nd-asset.ts] [+] Waiting to be mined
+[2025-04-25T18:05:08.758Z] [2-create-2nd-asset.ts] Mined! Response: {
+  "block_tx": "343418:1",
+  "is_valid": true,
+  "message": {
+    "flaw": null,
+    "message": {
+      "contract_creation": {
+        "contract_type": {
+          "moa": {
+            "divisibility": 18,
+            "live_time": 0,
+            "mint_mechanism": {
+              "free_mint": {
+                "amount_per_mint": "1",
+                "supply_cap": "1000000"
+              }
+            },
+            "supply_cap": "1000000",
+            "ticker": "GLT-DEX2"
+          }
+        },
+        "spec": null
+      }
+    }
+  }
+}
+[2025-04-25T18:31:30.157Z] [2-create-2nd-asset.ts] Starting free mint contract deployment...
+[2025-04-25T18:31:32.599Z] [2-create-2nd-asset.ts] Error during deployment: Invalid Glittr TX Format : {"is_valid":false,"msg":"ticker_already_exist"}
+[2025-04-25T18:33:57.596Z] [2-create-2nd-asset.ts] Starting free mint contract deployment...
+[2025-04-25T18:34:00.270Z] [2-create-2nd-asset.ts] TXID : 37f30fd4ed2e1ea802a7175098aba8f0560cd0f2c39c7c9447de30a34da582ac
+[2025-04-25T18:34:00.271Z] [2-create-2nd-asset.ts] [+] Waiting to be mined
+[2025-04-25T18:34:25.265Z] [2-create-2nd-asset.ts] Mined! Response: {
+  "block_tx": "343447:1",
+  "is_valid": true,
+  "message": {
+    "flaw": null,
+    "message": {
+      "contract_creation": {
+        "contract_type": {
+          "moa": {
+            "divisibility": 18,
+            "live_time": 0,
+            "mint_mechanism": {
+              "free_mint": {
+                "amount_per_mint": "1000",
+                "supply_cap": "10000000000"
+              }
+            },
+            "supply_cap": "10000000000",
+            "ticker": "GLTT-DEX-2"
+          }
+        },
+        "spec": null
+      }
+    }
+  }
+}

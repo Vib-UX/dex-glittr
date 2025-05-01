@@ -1,0 +1,100 @@
+[2025-04-25T18:15:06.086Z] [5-create-amm-asset.ts] Starting AMM contract deployment...
+[2025-04-25T18:15:13.641Z] [5-create-amm-asset.ts] TXID : 4980f6ba41e548c9ef9d17675fdb22c6ee5d1d5fd4f3243e9dc0a536750fe15a
+[2025-04-25T18:15:13.642Z] [5-create-amm-asset.ts] [+] Waiting to be mined
+[2025-04-25T18:15:14.415Z] [5-create-amm-asset.ts] Mined! Response: {
+  "block_tx": "343428:1",
+  "is_valid": true,
+  "message": {
+    "flaw": null,
+    "message": {
+      "contract_creation": {
+        "contract_type": {
+          "mba": {
+            "burn_mechanism": {},
+            "divisibility": 18,
+            "live_time": 0,
+            "mint_mechanism": {
+              "collateralized": {
+                "_mutable_assets": false,
+                "input_assets": [
+                  {
+                    "glittr_asset": [
+                      343407,
+                      1
+                    ]
+                  },
+                  {
+                    "glittr_asset": [
+                      343418,
+                      1
+                    ]
+                  }
+                ],
+                "mint_structure": {
+                  "proportional": {
+                    "inital_mint_pointer_to_key": null,
+                    "ratio_model": "constant_product"
+                  }
+                }
+              }
+            },
+            "swap_mechanism": {},
+            "ticker": "GLT-AMM"
+          }
+        },
+        "spec": null
+      }
+    }
+  }
+}
+[2025-04-25T18:37:36.262Z] [5-create-amm-asset.ts] Starting AMM contract deployment...
+[2025-04-25T18:37:36.263Z] [5-create-amm-asset.ts] Using first contract: 343443:1
+[2025-04-25T18:37:36.264Z] [5-create-amm-asset.ts] Using second contract: 343447:1
+[2025-04-25T18:37:45.088Z] [5-create-amm-asset.ts] TXID : ca78fa5505213937a8f76bdfa3e21f44fdcd31cc967b9ee958834fb73787f35d
+[2025-04-25T18:37:45.089Z] [5-create-amm-asset.ts] [+] Waiting to be mined
+[2025-04-25T18:38:27.561Z] [5-create-amm-asset.ts] Mined! Response: {
+  "block_tx": "343451:1",
+  "is_valid": true,
+  "message": {
+    "flaw": null,
+    "message": {
+      "contract_creation": {
+        "contract_type": {
+          "mba": {
+            "burn_mechanism": {},
+            "divisibility": 18,
+            "live_time": 0,
+            "mint_mechanism": {
+              "collateralized": {
+                "_mutable_assets": false,
+                "input_assets": [
+                  {
+                    "glittr_asset": [
+                      343443,
+                      1
+                    ]
+                  },
+                  {
+                    "glittr_asset": [
+                      343447,
+                      1
+                    ]
+                  }
+                ],
+                "mint_structure": {
+                  "proportional": {
+                    "inital_mint_pointer_to_key": null,
+                    "ratio_model": "constant_product"
+                  }
+                }
+              }
+            },
+            "swap_mechanism": {},
+            "ticker": "GLTT-AMM"
+          }
+        },
+        "spec": null
+      }
+    }
+  }
+}

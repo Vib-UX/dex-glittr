@@ -1,0 +1,69 @@
+[2025-04-25T18:11:18.753Z] [3-mint-1st-asset.tsx] Starting mint operation for GLT-DEX1...
+[2025-04-25T18:11:26.727Z] [3-mint-1st-asset.tsx] TXID : c5a6c3e280c223feb0261a1dd049abea76b7970180da128691481004a93af7f5
+[2025-04-25T18:11:26.728Z] [3-mint-1st-asset.tsx] [+] Waiting to be mined
+[2025-04-25T18:12:12.678Z] [3-mint-1st-asset.tsx] Mined! Response: {
+  "block_tx": "343425:1",
+  "is_valid": true,
+  "message": {
+    "flaw": null,
+    "message": {
+      "contract_call": {
+        "call_type": {
+          "mint": {
+            "pointer": 1
+          }
+        },
+        "contract": [
+          343407,
+          1
+        ]
+      }
+    }
+  }
+}
+[2025-04-25T18:21:46.980Z] [3-mint-1st-asset.tsx] Starting mint operation for GLT-DEX1...
+[2025-04-25T18:21:54.968Z] [3-mint-1st-asset.tsx] TXID : a868df890db78d05e0944396899f05547a2e041ac922d1eae2372aa233e06430
+[2025-04-25T18:21:54.969Z] [3-mint-1st-asset.tsx] [+] Waiting to be mined
+[2025-04-25T18:22:18.544Z] [3-mint-1st-asset.tsx] Mined! Response: {
+  "block_tx": "343435:1",
+  "is_valid": true,
+  "message": {
+    "flaw": null,
+    "message": {
+      "contract_call": {
+        "call_type": {
+          "mint": {
+            "pointer": 1
+          }
+        },
+        "contract": [
+          343407,
+          1
+        ]
+      }
+    }
+  }
+}
+[2025-04-25T18:34:44.221Z] [3-mint-1st-asset.tsx] Starting mint operation for GLTT-DEX1...
+[2025-04-25T18:34:51.900Z] [3-mint-1st-asset.tsx] TXID : 24dc89772fc7d7021b7b34bbf296b803fb881eb08d5f739f6fba2cd4c80450ca
+[2025-04-25T18:34:51.901Z] [3-mint-1st-asset.tsx] [+] Waiting to be mined
+[2025-04-25T18:35:25.822Z] [3-mint-1st-asset.tsx] Mined! Response: {
+  "block_tx": "343448:1",
+  "is_valid": true,
+  "message": {
+    "flaw": null,
+    "message": {
+      "contract_call": {
+        "call_type": {
+          "mint": {
+            "pointer": 1
+          }
+        },
+        "contract": [
+          343443,
+          1
+        ]
+      }
+    }
+  }
+}

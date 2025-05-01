@@ -1,0 +1,62 @@
+[2025-04-25T17:53:24.232Z] [1-create-1st-asset.ts] Starting free mint contract deployment...
+[2025-04-25T17:53:27.276Z] [1-create-1st-asset.ts] TXID : 942aa828d4f2361f26c54b6f028d6151592f5aabc86d8dbf09ea13ed0aa3a19e
+[2025-04-25T17:53:27.277Z] [1-create-1st-asset.ts] [+] Waiting to be mined
+[2025-04-25T17:54:07.581Z] [1-create-1st-asset.ts] Mined! Response: {
+  "block_tx": "343407:1",
+  "is_valid": true,
+  "message": {
+    "flaw": null,
+    "message": {
+      "contract_creation": {
+        "contract_type": {
+          "moa": {
+            "divisibility": 18,
+            "live_time": 0,
+            "mint_mechanism": {
+              "free_mint": {
+                "amount_per_mint": "1",
+                "supply_cap": "1000000"
+              }
+            },
+            "supply_cap": "1000000",
+            "ticker": "GLT-DEX1"
+          }
+        },
+        "spec": null
+      }
+    }
+  }
+}
+[2025-04-25T18:28:49.101Z] [1-create-1st-asset.ts] Starting free mint contract deployment...
+[2025-04-25T18:28:51.553Z] [1-create-1st-asset.ts] Error during deployment: Invalid Glittr TX Format : {"is_valid":false,"msg":"ticker_already_exist"}
+[2025-04-25T18:29:24.053Z] [1-create-1st-asset.ts] Starting free mint contract deployment...
+[2025-04-25T18:29:26.532Z] [1-create-1st-asset.ts] Error during deployment: Invalid Glittr TX Format : {"is_valid":false,"msg":"ticker_already_exist"}
+[2025-04-25T18:29:34.153Z] [1-create-1st-asset.ts] Starting free mint contract deployment...
+[2025-04-25T18:29:36.870Z] [1-create-1st-asset.ts] TXID : d0ca72de2b1fb02fb7caddff705bc68df854576ae92f3b29d48c8e0b627db2b4
+[2025-04-25T18:29:36.871Z] [1-create-1st-asset.ts] [+] Waiting to be mined
+[2025-04-25T18:30:23.004Z] [1-create-1st-asset.ts] Mined! Response: {
+  "block_tx": "343443:1",
+  "is_valid": true,
+  "message": {
+    "flaw": null,
+    "message": {
+      "contract_creation": {
+        "contract_type": {
+          "moa": {
+            "divisibility": 18,
+            "live_time": 0,
+            "mint_mechanism": {
+              "free_mint": {
+                "amount_per_mint": "1000",
+                "supply_cap": "10000000000"
+              }
+            },
+            "supply_cap": "10000000000",
+            "ticker": "GLTT-DEX1"
+          }
+        },
+        "spec": null
+      }
+    }
+  }
+}

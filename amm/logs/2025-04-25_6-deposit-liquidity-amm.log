@@ -1,0 +1,53 @@
+[2025-04-25T18:17:23.754Z] [6-deposit-liquidity-amm.ts] Starting liquidity deposit to AMM...
+[2025-04-25T18:17:24.414Z] [6-deposit-liquidity-amm.ts] First contract: 343407:1
+[2025-04-25T18:17:24.414Z] [6-deposit-liquidity-amm.ts] Second contract: 343418:1
+[2025-04-25T18:17:26.067Z] [6-deposit-liquidity-amm.ts] Total hold 343407:1 : 1
+[2025-04-25T18:17:26.067Z] [6-deposit-liquidity-amm.ts] Total hold 343418:1 : 1
+[2025-04-25T18:17:26.067Z] [6-deposit-liquidity-amm.ts] Error during liquidity deposit: Amount for contract 343407:1 insufficient
+[2025-04-25T18:42:58.785Z] [6-deposit-liquidity-amm.ts] Starting liquidity deposit to AMM...
+[2025-04-25T18:42:59.398Z] [6-deposit-liquidity-amm.ts] First contract: 343443:1
+[2025-04-25T18:42:59.398Z] [6-deposit-liquidity-amm.ts] Second contract: 343447:1
+[2025-04-25T18:43:01.029Z] [6-deposit-liquidity-amm.ts] Total hold 343443:1 : 1000
+[2025-04-25T18:43:01.030Z] [6-deposit-liquidity-amm.ts] Total hold 343447:1 : 1000
+[2025-04-25T18:43:08.969Z] [6-deposit-liquidity-amm.ts] TXID : b6ed17d0782fe12aa73075aa0aed62cf1f65c7494aaa313ad8448c0580a22b34
+[2025-04-25T18:43:08.970Z] [6-deposit-liquidity-amm.ts] [+] Waiting to be mined
+[2025-04-25T18:43:30.356Z] [6-deposit-liquidity-amm.ts] Mined! Response: {
+  "block_tx": "343456:1",
+  "is_valid": true,
+  "message": {
+    "flaw": null,
+    "message": {
+      "contract_call": {
+        "call_type": {
+          "mint": {
+            "pointer": 1
+          }
+        },
+        "contract": [
+          343451,
+          1
+        ]
+      },
+      "transfer": {
+        "transfers": [
+          {
+            "amount": "900",
+            "asset": [
+              343443,
+              1
+            ],
+            "output": 1
+          },
+          {
+            "amount": "900",
+            "asset": [
+              343447,
+              1
+            ],
+            "output": 1
+          }
+        ]
+      }
+    }
+  }
+}

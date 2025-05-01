@@ -1,0 +1,45 @@
+[2025-04-25T18:49:02.902Z] [7-swap-amm.ts] Starting swap operation...
+[2025-04-25T18:49:02.907Z] [7-swap-amm.ts] Using AMM contract: 343451:1
+[2025-04-25T18:49:02.907Z] [7-swap-amm.ts] Using input contract: 343443:1
+[2025-04-25T18:49:04.110Z] [7-swap-amm.ts] Total Input Asset: 900
+[2025-04-25T18:49:04.111Z] [7-swap-amm.ts] Input Amount for swap: 10
+[2025-04-25T18:49:04.313Z] [7-swap-amm.ts] [+] Calculated output amount is: 9
+[2025-04-25T18:49:04.313Z] [7-swap-amm.ts] [+] Minimum output amount is: 8 (slippage: 10%)
+[2025-04-25T18:49:12.233Z] [7-swap-amm.ts] TXID : 00925f912b220247a5fcc8ce4b5192c31ce5d2df76950b2998917f51c5aa0354
+[2025-04-25T18:49:12.234Z] [7-swap-amm.ts] [+] Waiting to be mined
+[2025-04-25T18:49:40.855Z] [7-swap-amm.ts] Mined! Response: {
+  "block_tx": "343462:1",
+  "is_valid": true,
+  "message": {
+    "flaw": null,
+    "message": {
+      "contract_call": {
+        "call_type": {
+          "swap": {
+            "assert_values": {
+              "min_out_value": "8"
+            },
+            "pointer": 1
+          }
+        },
+        "contract": [
+          343451,
+          1
+        ]
+      },
+      "transfer": {
+        "transfers": [
+          {
+            "amount": "890",
+            "asset": [
+              343443,
+              1
+            ],
+            "output": 2
+          }
+        ]
+      }
+    }
+  }
+}
+[2025-04-25T18:49:41.374Z] [7-swap-amm.ts] Asset output: "{\"assets\":{\"list\":{\"343447:1\":909,\"343451:1\":100}}}"

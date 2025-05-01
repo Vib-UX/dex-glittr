@@ -1,0 +1,4 @@
+[2025-04-25T17:50:32.958Z] [address-check.ts] Starting free mint contract deployment...
+[2025-04-25T17:50:35.768Z] [address-check.ts] Error during deployment: Invalid Glittr TX Format : {"is_valid":false,"msg":"ticker_already_exist"}
+[2025-04-25T17:51:43.027Z] [address-check.ts] Checking address for WIF
+[2025-04-25T17:51:43.032Z] [address-check.ts] Generated address: bcrt1pzgf2rdd66juvhjp3zcxzwz4nxs9p3nj8vukhgffvd9flxlrz564q58sh09
