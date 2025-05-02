@@ -90,7 +90,7 @@ export default function Swap(): React.ReactElement {
       : null;
 
   useEffect(() => {
-    function handleClickOutside(event: MouseEvent): void {
+    function handleClickOutside(): void {
       // Remove click outside handler since we no longer have dropdowns
     }
 
