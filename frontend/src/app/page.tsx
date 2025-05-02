@@ -4,15 +4,7 @@ import { FaGlobe, FaTelegram, FaTwitter, FaChevronDown } from "react-icons/fa";
 import { FiPlus } from "react-icons/fi";
 
 import { useLaserEyes } from "@glittr-sdk/lasereyes";
-import {
-  addFeeToTx,
-  BitcoinUTXO,
-  BlockTxTuple,
-  electrumFetchNonGlittrUtxos,
-  OpReturnMessage,
-  Output,
-  txBuilder,
-} from "@glittr-sdk/sdk";
+import { BlockTxTuple, OpReturnMessage, txBuilder } from "@glittr-sdk/sdk";
 import { Psbt } from "bitcoinjs-lib";
 
 import toast from "react-hot-toast";
@@ -214,11 +206,13 @@ export default function CreatePool(): React.ReactElement {
       setAmContract(txid);
 
       console.log("Waiting for message confirmation...");
+      let confirmedBlockTx = "";
       while (true) {
         try {
           const message = await client.getGlittrMessageByTxId(txid);
           console.log("Message received:", message);
           console.log("Block TX value:", message.block_tx);
+          confirmedBlockTx = message.block_tx;
           setBlockTuble(message.block_tx);
           break;
         } catch (error) {
@@ -229,9 +223,9 @@ export default function CreatePool(): React.ReactElement {
       }
       // Before calling deposit need to wait for 5 sec
       await new Promise((resolve) => setTimeout(resolve, 5000));
-      // instead of blockTuble here is there another way to call it with message.block_tx? but message is inside the loop
-      console.log("Block TX value:", blockTuble);
-      await depositLiquidity(blockTuble);
+      setBlockTuble(confirmedBlockTx);
+      console.log("Using confirmed block TX value:", confirmedBlockTx);
+      await depositLiquidity(confirmedBlockTx);
     } catch (error) {
       setLoading(false);
       console.error("Error creating pool:", error);
@@ -347,11 +341,6 @@ export default function CreatePool(): React.ReactElement {
         );
       }
 
-      const nonFeeInputs: BitcoinUTXO[] = [
-        ...inputAssetsFirst,
-        ...inputAssetsSecond,
-      ];
-
       //   const tx: OpReturnMessage = {
       //     contract_call: {
       //       contract,
@@ -438,14 +427,14 @@ export default function CreatePool(): React.ReactElement {
       console.log("Broadcasting transaction...");
       const txid = await client.broadcastTx(txHex);
       console.log("Transaction broadcasted with ID:", txid);
-      setAmContract(txid);
+      setDepositLink(txid);
 
       console.log("Waiting for message confirmation...");
       while (true) {
         try {
           const message = await client.getGlittrMessageByTxId(txid);
           console.log("Message received:", message);
-          setBlockTuble(message.block_tx);
+          setBlockDepositeLink(message.block_tx);
           break;
         } catch (error) {
           console.log(error);
@@ -453,6 +442,8 @@ export default function CreatePool(): React.ReactElement {
           await new Promise((resolve) => setTimeout(resolve, 5000)); // Retry every 5 seconds
         }
       }
+      setIsOpen(true);
+      setLoading(false);
       console.log("Liquidity deposit completed successfully");
       toast.success("Liquidity deposit completed successfully", toastStyles);
     } catch (error) {
