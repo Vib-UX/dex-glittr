@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, Suspense } from "react";
 import {
   FaGlobe,
   FaTelegram,
@@ -42,7 +42,7 @@ interface ApiResponse {
   };
 }
 
-export default function Swap(): React.ReactElement {
+function SwapContent(): React.ReactElement {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [pools, setPools] = useState<ContractInfo[] | null>(null);
@@ -624,5 +624,22 @@ export default function Swap(): React.ReactElement {
         </footer>
       </div>
     </>
+  );
+}
+
+export default function Swap(): React.ReactElement {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-[#1e1c1f] text-white font-mono flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#8b5cf6] mx-auto mb-4"></div>
+            <p className="text-[#ffe1ff]">Loading...</p>
+          </div>
+        </div>
+      }
+    >
+      <SwapContent />
+    </Suspense>
   );
 }
