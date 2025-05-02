@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState } from "react";
 import {
   FaGlobe,
   FaTelegram,
@@ -11,7 +11,7 @@ import { FiArrowDown } from "react-icons/fi";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import { useLaserEyes } from "@glittr-sdk/lasereyes";
-import { BlockTxTuple, OpReturnMessage, txBuilder } from "@glittr-sdk/sdk";
+import { OpReturnMessage, txBuilder } from "@glittr-sdk/sdk";
 import { Psbt } from "bitcoinjs-lib";
 
 import toast from "react-hot-toast";
@@ -57,18 +57,11 @@ export default function Swap(): React.ReactElement {
   const [showPoolSelection, setShowPoolSelection] = useState<boolean>(true);
   const [blockDepositeLink, setBlockDepositeLink] = useState<string>("");
   const [isOpen, setIsOpen] = useState(false);
-  const [blockTuble, setBlockTuble] = useState("");
-  const [depositLink, setDepositLink] = useState<string>("");
-  const [showFromDropdown, setShowFromDropdown] = useState<boolean>(false);
-  const [showToDropdown, setShowToDropdown] = useState<boolean>(false);
-  const fromDropdownRef = useRef<HTMLDivElement>(null);
-  const toDropdownRef = useRef<HTMLDivElement>(null);
   const [loading, setLoading] = useState<boolean>(false);
-  const [amContract, setAmContract] = useState<string>("");
-  const { paymentAddress, connected, signPsbt, paymentPublicKey } =
-    useLaserEyes();
   const [fromTokenBalance, setFromTokenBalance] = useState<string>("0");
   const [toTokenBalance, setToTokenBalance] = useState<string>("0");
+  const { paymentAddress, connected, signPsbt, paymentPublicKey } =
+    useLaserEyes();
 
   // Properly typed account object
   type Account = {
@@ -98,18 +91,7 @@ export default function Swap(): React.ReactElement {
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent): void {
-      if (
-        fromDropdownRef.current &&
-        !fromDropdownRef.current.contains(event.target as Node)
-      ) {
-        setShowFromDropdown(false);
-      }
-      if (
-        toDropdownRef.current &&
-        !toDropdownRef.current.contains(event.target as Node)
-      ) {
-        setShowToDropdown(false);
-      }
+      // Remove click outside handler since we no longer have dropdowns
     }
 
     document.addEventListener("mousedown", handleClickOutside);
@@ -286,16 +268,12 @@ export default function Swap(): React.ReactElement {
       console.log("Broadcasting transaction...");
       const txid = await client.broadcastTx(txHex);
       console.log("Transaction broadcasted with ID:", txid);
-      setDepositLink(txid);
 
       console.log("Waiting for message confirmation...");
-      let confirmedBlockTx = "";
       while (true) {
         try {
           const message = await client.getGlittrMessageByTxId(txid);
           console.log("Message received:", message);
-          console.log("Block TX value:", message.block_tx);
-          confirmedBlockTx = message.block_tx;
           setBlockDepositeLink(message.block_tx);
           break;
         } catch (error) {
@@ -412,9 +390,9 @@ export default function Swap(): React.ReactElement {
         <MyModal
           isOpen={isOpen}
           setIsOpen={setIsOpen}
-          link={amContract}
-          blockTuble={blockTuble}
-          depositLink={depositLink}
+          link={blockDepositeLink}
+          blockTuble={blockDepositeLink}
+          depositLink={blockDepositeLink}
           blockDepositeLink={blockDepositeLink}
         />
       )}
