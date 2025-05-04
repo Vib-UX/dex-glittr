@@ -42,6 +42,184 @@ interface ApiResponse {
   };
 }
 
+// Add utility functions
+const sumArray = (arr: any[]) =>
+  arr.reduce((total, current) => total + current, 0);
+
+const contractTupleToString = (contract: [number, number]) => {
+  return contract[0] + ":" + contract[1];
+};
+
+const calculateOutAmount = async (
+  contract: [number, number],
+  contractInput: [number, number],
+  amount: number
+): Promise<number> => {
+  console.log("calculateOutAmount called with:", {
+    contract,
+    contractInput,
+    amount,
+  });
+
+  try {
+    const contractState = await client.getContractState(
+      contract[0],
+      contract[1]
+    );
+    console.log("Contract state retrieved:", {
+      contractId: `${contract[0]}:${contract[1]}`,
+      hasCollateralized: !!contractState.collateralized,
+      collateralizedAmounts: contractState.collateralized?.amounts || {},
+      fullState: contractState,
+    });
+
+    if (
+      !contractState.collateralized ||
+      !contractState.collateralized.amounts
+    ) {
+      throw new Error("Invalid contract state: missing collateralized amounts");
+    }
+
+    const inputContractString = contractTupleToString(contractInput);
+    const availableContracts = Object.keys(
+      contractState.collateralized.amounts
+    );
+
+    console.log("Available contracts in pool:", {
+      availableContracts,
+      inputContractString,
+      amounts: contractState.collateralized.amounts,
+    });
+
+    if (!availableContracts.includes(inputContractString)) {
+      throw new Error(
+        `Input contract ${inputContractString} not found in pool`
+      );
+    }
+
+    const outputContract = availableContracts.find(
+      (item: string) => item !== inputContractString
+    );
+
+    if (!outputContract) {
+      throw new Error("Could not find output contract in pool");
+    }
+
+    console.log("Output contract found:", {
+      outputContract,
+      allContracts: availableContracts,
+    });
+
+    const inputTotalSupply = parseInt(
+      contractState.collateralized.amounts[inputContractString]
+    );
+    const outputTotalSupply = parseInt(
+      contractState.collateralized.amounts[outputContract]
+    );
+
+    console.log("Supply values:", {
+      inputTotalSupply,
+      outputTotalSupply,
+      inputContractString,
+      outputContract,
+      rawInputSupply: contractState.collateralized.amounts[inputContractString],
+      rawOutputSupply: contractState.collateralized.amounts[outputContract],
+    });
+
+    // Check if pool has been initialized with liquidity
+    if (inputTotalSupply === 0 || outputTotalSupply === 0) {
+      console.error("Pool has no liquidity:", {
+        inputTotalSupply,
+        outputTotalSupply,
+        inputContractString,
+        outputContract,
+      });
+      throw new Error(
+        "This pool has no liquidity. Please add liquidity first."
+      );
+    }
+
+    if (isNaN(inputTotalSupply) || isNaN(outputTotalSupply)) {
+      throw new Error("Invalid supply values: NaN detected");
+    }
+
+    if (inputTotalSupply < 0 || outputTotalSupply < 0) {
+      throw new Error(
+        `Invalid supply values: input=${inputTotalSupply}, output=${outputTotalSupply}`
+      );
+    }
+
+    // Calculate price impact
+    const priceImpact = (amount / inputTotalSupply) * 100;
+    console.log("Price impact calculation:", {
+      amount,
+      inputTotalSupply,
+      priceImpact: `${priceImpact.toFixed(2)}%`,
+    });
+
+    // Warn if price impact is too high
+    if (priceImpact > 10) {
+      console.warn("High price impact detected:", {
+        priceImpact: `${priceImpact.toFixed(2)}%`,
+        amount,
+        inputTotalSupply,
+      });
+    }
+
+    const outputAmount = Math.floor(
+      outputTotalSupply -
+        (inputTotalSupply * outputTotalSupply) / (inputTotalSupply + amount)
+    );
+
+    console.log("Calculation details:", {
+      formula:
+        "outputTotalSupply - (inputTotalSupply * outputTotalSupply) / (inputTotalSupply + amount)",
+      values: {
+        outputTotalSupply,
+        inputTotalSupply,
+        amount,
+        result: outputAmount,
+        intermediate: {
+          product: inputTotalSupply * outputTotalSupply,
+          sum: inputTotalSupply + amount,
+          division:
+            (inputTotalSupply * outputTotalSupply) /
+            (inputTotalSupply + amount),
+        },
+      },
+    });
+
+    if (outputAmount <= 0) {
+      console.error("Invalid output amount calculated:", {
+        inputTotalSupply,
+        outputTotalSupply,
+        amount,
+        outputAmount,
+        intermediate: {
+          product: inputTotalSupply * outputTotalSupply,
+          sum: inputTotalSupply + amount,
+          division:
+            (inputTotalSupply * outputTotalSupply) /
+            (inputTotalSupply + amount),
+        },
+      });
+      throw new Error(
+        `Invalid output amount: ${outputAmount}. This might be due to insufficient liquidity or too large of a swap amount.`
+      );
+    }
+
+    return outputAmount;
+  } catch (error) {
+    console.error("Error in calculateOutAmount:", {
+      error,
+      contract,
+      contractInput,
+      amount,
+    });
+    throw error;
+  }
+};
+
 function SwapContent(): React.ReactElement {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -62,6 +240,13 @@ function SwapContent(): React.ReactElement {
   const [toTokenBalance, setToTokenBalance] = useState<string>("0");
   const { paymentAddress, connected, signPsbt, paymentPublicKey } =
     useLaserEyes();
+  const [slippage, setSlippage] = useState<number>(10); // Changed to 10% default slippage
+  const [calculatedOutput, setCalculatedOutput] = useState<number>(0);
+  const [minOutputAmount, setMinOutputAmount] = useState<number>(0);
+  const [isCalculating, setIsCalculating] = useState<boolean>(false);
+  const [isDepositMode, setIsDepositMode] = useState<boolean>(false);
+  const [depositAmount, setDepositAmount] = useState<string>("0.00");
+  const [depositLoading, setDepositLoading] = useState<boolean>(false);
 
   // Properly typed account object
   type Account = {
@@ -125,12 +310,30 @@ function SwapContent(): React.ReactElement {
         const typedResponse = listContractRaw as ApiResponse;
         console.log("Typed response:", typedResponse);
 
-        // Filter for AMM pools (contracts that start with "AMM-")
+        // Filter for AMM pools (contracts that start with "AMM-" or end with "-AMM")
         const pools = Object.keys(typedResponse.result)
           .filter((contractId: string) => {
             const contractInfo = typedResponse.result[contractId];
             console.log("Processing contract:", contractId, contractInfo);
-            return contractInfo.ticker?.startsWith("AMM-") === true;
+
+            // Check if the contract has a ticker
+            if (!contractInfo.ticker) {
+              console.log("Skipping contract without ticker:", contractId);
+              return false;
+            }
+
+            const isAmmPool =
+              contractInfo.ticker.startsWith("AMM-") ||
+              contractInfo.ticker.endsWith("-AMM");
+
+            console.log("AMM pool check:", {
+              ticker: contractInfo.ticker,
+              isAmmPool,
+              startsWithAMM: contractInfo.ticker.startsWith("AMM-"),
+              endsWithAMM: contractInfo.ticker.endsWith("-AMM"),
+            });
+
+            return isAmmPool;
           })
           .reverse() // Reverse the order to show latest first
           .map((contractId: string) => {
@@ -361,6 +564,81 @@ function SwapContent(): React.ReactElement {
     fetchBalances();
   }, [account, fromTokenSelected, toTokenSelected, paymentAddress]);
 
+  // Add effect to calculate output amount when input changes
+  useEffect(() => {
+    const calculateOutput = async () => {
+      if (
+        !selectedPool ||
+        !fromTokenSelected ||
+        !fromTokenAmount ||
+        parseFloat(fromTokenAmount) <= 0
+      ) {
+        console.log("Skipping calculation - missing required data:", {
+          selectedPool,
+          fromTokenSelected,
+          fromTokenAmount,
+        });
+        setCalculatedOutput(0);
+        setMinOutputAmount(0);
+        return;
+      }
+
+      setIsCalculating(true);
+      try {
+        console.log("Starting output calculation with:", {
+          pool: selectedPool.ticker,
+          fromToken: fromTokenSelected.ticker,
+          amount: fromTokenAmount,
+          slippage: `${slippage}%`,
+        });
+
+        const contractParts = selectedPool.contractId.split(":");
+        const fromTokenParts = fromTokenSelected.contractId.split(":");
+
+        const contract: [number, number] = [
+          parseInt(contractParts[0]),
+          parseInt(contractParts[1]),
+        ];
+        const fromToken: [number, number] = [
+          parseInt(fromTokenParts[0]),
+          parseInt(fromTokenParts[1]),
+        ];
+
+        console.log("Contract details:", {
+          poolContract: contract,
+          fromTokenContract: fromToken,
+        });
+
+        const outAmount = await calculateOutAmount(
+          contract,
+          fromToken,
+          parseFloat(fromTokenAmount)
+        );
+
+        console.log("Calculation results:", {
+          outputAmount: outAmount,
+          slippage: `${slippage}%`,
+          minOutput: Math.floor(outAmount - (outAmount * slippage) / 100),
+        });
+
+        setCalculatedOutput(outAmount);
+        const minOutput = Math.floor(outAmount - (outAmount * slippage) / 100);
+        setMinOutputAmount(minOutput);
+        setToTokenAmount(outAmount.toString());
+      } catch (error) {
+        console.error("Error calculating output amount:", error);
+        toast.error(
+          "Error calculating output amount: " + (error as Error).message,
+          toastStyles
+        );
+      } finally {
+        setIsCalculating(false);
+      }
+    };
+
+    calculateOutput();
+  }, [fromTokenAmount, selectedPool, fromTokenSelected, slippage]);
+
   const handleBackToPools = (): void => {
     setShowPoolSelection(true);
     setSelectedPool(null);
@@ -381,6 +659,197 @@ function SwapContent(): React.ReactElement {
       setToTokenAmount(tempAmount);
       setFromTokenBalance(toTokenBalance);
       setToTokenBalance(tempBalance);
+    }
+  };
+
+  // Add deposit liquidity function
+  const handleDepositLiquidity = async (): Promise<void> => {
+    if (!account || !fromTokenSelected || !toTokenSelected || !selectedPool) {
+      console.log("Missing required data for liquidity deposit:", {
+        account,
+        fromTokenSelected,
+        toTokenSelected,
+        selectedPool,
+      });
+      return;
+    }
+    try {
+      console.log("Starting liquidity deposit to AMM...");
+      const contractParts = selectedPool.contractId.split(":");
+      const contract: [number, number] = [
+        parseInt(contractParts[0]),
+        parseInt(contractParts[1]),
+      ];
+      console.log("AMM Contract:", contract);
+
+      // Get contract pair information from the AMM contract
+      console.log("Fetching AMM contract info...");
+      const contractInfo = await client.getGlittrMessage(
+        contract[0],
+        contract[1]
+      );
+      console.log("AMM Contract Info:", contractInfo);
+
+      const firstContract: [number, number] = [
+        parseInt(fromTokenSelected.contractId.slice(0, 7)),
+        1,
+      ];
+
+      const secondContract: [number, number] = [
+        parseInt(toTokenSelected.contractId.slice(0, 7)),
+        1,
+      ];
+
+      console.log(`First contract: ${firstContract[0]}:${firstContract[1]}`);
+      console.log(`Second contract: ${secondContract[0]}:${secondContract[1]}`);
+
+      // Get your address' UTXO that contains the Assets
+      console.log("Fetching asset UTXOs...");
+      const inputAssetsFirst = await client.getAssetUtxos(
+        paymentAddress,
+        `${parseInt(fromTokenSelected.contractId.slice(0, 7))}:${1}`
+      );
+      const inputAssetsSecond = await client.getAssetUtxos(
+        paymentAddress,
+        `${parseInt(toTokenSelected.contractId.slice(0, 7))}:${1}`
+      );
+
+      console.log("First asset UTXOs:", inputAssetsFirst);
+      console.log("Second asset UTXOs:", inputAssetsSecond);
+
+      // Check if you don't have the assets
+      if (inputAssetsFirst.length === 0) {
+        throw new Error(
+          `You do not have assets for ${firstContract[0]}:${firstContract[1]}`
+        );
+      }
+
+      if (inputAssetsSecond.length === 0) {
+        throw new Error(
+          `You do not have assets for ${secondContract[0]}:${secondContract[1]}`
+        );
+      }
+
+      // Calculate total assets
+      const totalHoldFirstAsset = inputAssetsFirst.reduce(
+        (sum, item) => sum + parseInt(item.assetAmount),
+        0
+      );
+      const totalHoldSecondAsset = inputAssetsSecond.reduce(
+        (sum, item) => sum + parseInt(item.assetAmount),
+        0
+      );
+
+      console.log(
+        `Total hold ${firstContract[0]}:${firstContract[1]}: ${totalHoldFirstAsset}`
+      );
+      console.log(
+        `Total hold ${secondContract[0]}:${secondContract[1]}: ${totalHoldSecondAsset}`
+      );
+
+      // Set how much you want to transfer for AMM liquidity
+      const firstContractAmountForLiquidity = +depositAmount;
+      const secondContractAmountForLiquidity = +depositAmount;
+
+      if (firstContractAmountForLiquidity > totalHoldFirstAsset) {
+        throw new Error(
+          `Amount for contract ${firstContract[0]}:${firstContract[1]} insufficient`
+        );
+      }
+
+      if (secondContractAmountForLiquidity > totalHoldSecondAsset) {
+        throw new Error(
+          `Amount for contract ${secondContract[0]}:${secondContract[1]} insufficient`
+        );
+      }
+
+      const backendTx: OpReturnMessage = {
+        contract_call: {
+          contract,
+          call_type: {
+            mint: {
+              pointer: 1,
+            },
+          },
+        },
+        transfer: {
+          transfers: [
+            {
+              asset: firstContract,
+              output: 1,
+              amount: (
+                totalHoldFirstAsset - firstContractAmountForLiquidity
+              ).toString(),
+            },
+            {
+              asset: secondContract,
+              output: 1,
+              amount: (
+                totalHoldSecondAsset - secondContractAmountForLiquidity
+              ).toString(),
+            },
+          ],
+        },
+      };
+
+      console.log("Backend transaction object:", backendTx);
+
+      const txResp = txBuilder.customMessage(backendTx);
+      console.log("Transaction response:", txResp);
+
+      console.log("Creating transaction with client...");
+      const tokenPsbt = await client.createTx({
+        address: paymentAddress,
+        tx: txResp,
+        outputs: [],
+        publicKey: paymentPublicKey,
+      });
+      console.log("PSBT created:", tokenPsbt);
+
+      console.log("Signing PSBT...");
+      const depositLiquidityResult = await signPsbt(
+        tokenPsbt.toHex(),
+        false,
+        false
+      );
+      console.log("PSBT signing result:", depositLiquidityResult);
+
+      if (!depositLiquidityResult?.signedPsbtHex) {
+        throw new Error("Failed to sign transaction");
+      }
+
+      const finalizedPsbt = Psbt.fromHex(depositLiquidityResult.signedPsbtHex);
+      finalizedPsbt.finalizeAllInputs();
+      const txHex = finalizedPsbt.extractTransaction(true).toHex();
+      console.log("Broadcasting transaction...");
+      const txid = await client.broadcastTx(txHex);
+      console.log("Transaction broadcasted with ID:", txid);
+      setBlockDepositeLink(txid);
+
+      console.log("Waiting for message confirmation...");
+      while (true) {
+        try {
+          const message = await client.getGlittrMessageByTxId(txid);
+          console.log("Message received:", message);
+          setBlockDepositeLink(message.block_tx);
+          break;
+        } catch (error) {
+          console.log(error);
+          console.log("Waiting for message confirmation...");
+          await new Promise((resolve) => setTimeout(resolve, 5000)); // Retry every 5 seconds
+        }
+      }
+      setIsOpen(true);
+      setDepositLoading(false);
+      console.log("Liquidity deposit completed successfully");
+      toast.success("Liquidity deposit completed successfully", toastStyles);
+    } catch (error) {
+      setDepositLoading(false);
+      console.error("Error depositing liquidity:", error);
+      toast.error(
+        "Error depositing liquidity: " + (error as Error).message,
+        toastStyles
+      );
     }
   };
 
@@ -407,19 +876,45 @@ function SwapContent(): React.ReactElement {
 
         {/* Main Content */}
         <main className="relative z-10 max-w-2xl mx-auto px-4 py-32">
-          <div className="flex items-center mb-8">
+          <div className="flex items-center justify-between mb-8">
+            <div className="flex items-center">
+              {!showPoolSelection && (
+                <button
+                  onClick={handleBackToPools}
+                  className="flex items-center text-gray-400 hover:text-white transition-colors mr-4"
+                >
+                  <FaArrowLeft className="w-4 h-4 mr-2" />
+                  Select Different Market
+                </button>
+              )}
+              <h1 className="text-3xl font-bold tracking-wider text-[#ffe1ff]">
+                {isDepositMode ? "DEPOSIT LIQUIDITY" : "SWAP"}
+              </h1>
+            </div>
             {!showPoolSelection && (
-              <button
-                onClick={handleBackToPools}
-                className="flex items-center text-gray-400 hover:text-white transition-colors mr-4"
-              >
-                <FaArrowLeft className="w-4 h-4 mr-2" />
-                Select Different Market
-              </button>
+              <div className="flex items-center space-x-2 bg-[#131320] p-1 rounded-lg border border-[#333333]/50">
+                <button
+                  onClick={() => setIsDepositMode(false)}
+                  className={`px-4 py-2 rounded-md transition-all duration-300 ${
+                    !isDepositMode
+                      ? "bg-[#8b5cf6] text-white"
+                      : "text-gray-400 hover:text-white"
+                  }`}
+                >
+                  Swap
+                </button>
+                <button
+                  onClick={() => setIsDepositMode(true)}
+                  className={`px-4 py-2 rounded-md transition-all duration-300 ${
+                    isDepositMode
+                      ? "bg-[#8b5cf6] text-white"
+                      : "text-gray-400 hover:text-white"
+                  }`}
+                >
+                  Deposit
+                </button>
+              </div>
             )}
-            <h1 className="text-3xl font-bold tracking-wider text-[#ffe1ff]">
-              SWAP
-            </h1>
           </div>
 
           {showPoolSelection ? (
@@ -546,45 +1041,160 @@ function SwapContent(): React.ReactElement {
                     <span>Balance: {toTokenBalance}</span>
                   </div>
                 </div>
-              </div>
 
-              {/* Swap Button */}
-              {loading ? (
-                <div className="flex mt-12 items-center justify-center cursor-pointer bg-gradient-to-r from-[#8b5cf6] to-[#6d4bb1] hover:shadow-lg hover:shadow-[#8b5cf6]/20 w-full py-4 rounded-xl text-white font-bold text-lg tracking-wider transition-all duration-300 overflow-hidden group">
-                  <div className="pr-2">SWAPPING, PLEASE WAIT</div>
-                  <div role="status">
-                    <svg
-                      aria-hidden="true"
-                      className="size-6 text-gray-200 animate-spin fill-blue-600"
-                      viewBox="0 0 100 101"
-                      fill="none"
-                      xmlns="http://www.w3.org/2000/svg"
-                    >
-                      <path
-                        d="M100 50.5908C100 78.2051 77.6142 100.591 50 100.591C22.3858 100.591 0 78.2051 0 50.5908C0 22.9766 22.3858 0.59082 50 0.59082C77.6142 0.59082 100 22.9766 100 50.5908ZM9.08144 50.5908C9.08144 73.1895 27.4013 91.5094 50 91.5094C72.5987 91.5094 90.9186 73.1895 90.9186 50.5908C90.9186 27.9921 72.5987 9.67226 50 9.67226C27.4013 9.67226 9.08144 27.9921 9.08144 50.5908Z"
-                        fill="currentColor"
+                {/* Update Slippage Settings */}
+                <div className="m-5 mt-3 bg-[#0a0a10] rounded-xl p-4 border border-[#1f1f30] shadow-inner">
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-gray-400">Slippage Tolerance</span>
+                    <div className="flex items-center space-x-2">
+                      <button
+                        onClick={() => setSlippage(5)}
+                        className={`px-2 py-1 rounded ${
+                          slippage === 5
+                            ? "bg-[#8b5cf6] text-white"
+                            : "bg-[#131320] text-gray-400"
+                        }`}
+                      >
+                        5%
+                      </button>
+                      <button
+                        onClick={() => setSlippage(10)}
+                        className={`px-2 py-1 rounded ${
+                          slippage === 10
+                            ? "bg-[#8b5cf6] text-white"
+                            : "bg-[#131320] text-gray-400"
+                        }`}
+                      >
+                        10%
+                      </button>
+                      <button
+                        onClick={() => setSlippage(15)}
+                        className={`px-2 py-1 rounded ${
+                          slippage === 15
+                            ? "bg-[#8b5cf6] text-white"
+                            : "bg-[#131320] text-gray-400"
+                        }`}
+                      >
+                        15%
+                      </button>
+                      <input
+                        type="number"
+                        value={slippage}
+                        onChange={(e) =>
+                          setSlippage(parseFloat(e.target.value) || 0)
+                        }
+                        className="w-16 px-2 py-1 bg-[#131320] text-white rounded border border-[#333333]/50"
+                        min="0.1"
+                        max="100"
+                        step="0.1"
                       />
-                      <path
-                        d="M93.9676 39.0409C96.393 38.4038 97.8624 35.9116 97.0079 33.5539C95.2932 28.8227 92.871 24.3692 89.8167 20.348C85.8452 15.1192 80.8826 10.7238 75.2124 7.41289C69.5422 4.10194 63.2754 1.94025 56.7698 1.05124C51.7666 0.367541 46.6976 0.446843 41.7345 1.27873C39.2613 1.69328 37.813 4.19778 38.4501 6.62326C39.0873 9.04874 41.5694 10.4717 44.0505 10.1071C47.8511 9.54855 51.7191 9.52689 55.5402 10.0491C60.8642 10.7766 65.9928 12.5457 70.6331 15.2552C75.2735 17.9648 79.3347 21.5619 82.5849 25.841C84.9175 28.9121 86.7997 32.2913 88.1811 35.8758C89.083 38.2158 91.5421 39.6781 93.9676 39.0409Z"
-                        fill="currentFill"
-                      />
-                    </svg>
-                    <span className="sr-only">Loading...</span>
+                      <span className="text-gray-400">%</span>
+                    </div>
                   </div>
                 </div>
-              ) : (
-                <button
-                  onClick={handleSwap}
-                  disabled={!fromTokenSelected || !toTokenSelected}
-                  className={`cursor-pointer w-full py-4 mt-6 rounded-xl text-white font-bold text-lg tracking-wider transition-all duration-300 overflow-hidden group ${
-                    fromTokenSelected && toTokenSelected
-                      ? "bg-gradient-to-r from-[#8b5cf6] to-[#6d4bb1] hover:shadow-lg hover:shadow-[#8b5cf6]/20"
-                      : "bg-gray-600 cursor-not-allowed"
-                  }`}
-                >
-                  SWAP
-                </button>
-              )}
+
+                {/* Add Swap Info */}
+                {isCalculating ? (
+                  <div className="m-5 mt-3 bg-[#0a0a10] rounded-xl p-4 border border-[#1f1f30] shadow-inner">
+                    <div className="flex items-center justify-center text-gray-400">
+                      <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-[#8b5cf6] mr-2"></div>
+                      Calculating...
+                    </div>
+                  </div>
+                ) : calculatedOutput > 0 ? (
+                  <div className="m-5 mt-3 bg-[#0a0a10] rounded-xl p-4 border border-[#1f1f30] shadow-inner">
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-400">Expected Output</span>
+                        <span className="text-white">
+                          {calculatedOutput} {toTokenSelected?.ticker}
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-400">Minimum Received</span>
+                        <span className="text-white">
+                          {minOutputAmount} {toTokenSelected?.ticker}
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-400">Price Impact</span>
+                        <span className="text-white">
+                          {(
+                            (parseFloat(fromTokenAmount) / calculatedOutput) *
+                            100
+                          ).toFixed(2)}
+                          %
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
+
+                {isDepositMode ? (
+                  <>
+                    {/* Deposit Mode UI */}
+                    <div className="m-5 mt-3 bg-[#0a0a10] rounded-xl p-4 border border-[#1f1f30] shadow-inner">
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="text-gray-400">Deposit Amount</span>
+                        <input
+                          type="text"
+                          value={depositAmount}
+                          onChange={(e) => setDepositAmount(e.target.value)}
+                          className="w-32 px-3 py-1 bg-[#131320] text-white rounded border border-[#333333]/50"
+                          placeholder="0.00"
+                        />
+                      </div>
+                      <p className="text-sm text-gray-400 mt-2">
+                        Enter the amount of tokens you want to deposit for both
+                        assets
+                      </p>
+                    </div>
+
+                    {/* Deposit Button */}
+                    {depositLoading ? (
+                      <div className="flex mt-12 items-center justify-center cursor-pointer bg-gradient-to-r from-[#8b5cf6] to-[#6d4bb1] hover:shadow-lg hover:shadow-[#8b5cf6]/20 w-full py-4 rounded-xl text-white font-bold text-lg tracking-wider transition-all duration-300 overflow-hidden group">
+                        <div className="pr-2">DEPOSITING, PLEASE WAIT</div>
+                        <div role="status">
+                          <svg
+                            aria-hidden="true"
+                            className="size-6 text-gray-200 animate-spin fill-blue-600"
+                            viewBox="0 0 100 101"
+                            fill="none"
+                            xmlns="http://www.w3.org/2000/svg"
+                          >
+                            <path
+                              d="M100 50.5908C100 78.2051 77.6142 100.591 50 100.591C22.3858 100.591 0 78.2051 0 50.5908C0 22.9766 22.3858 0.59082 50 0.59082C77.6142 0.59082 100 22.9766 100 50.5908ZM9.08144 50.5908C9.08144 73.1895 27.4013 91.5094 50 91.5094C72.5987 91.5094 90.9186 73.1895 90.9186 50.5908C90.9186 27.9921 72.5987 9.67226 50 9.67226C27.4013 9.67226 9.08144 27.9921 9.08144 50.5908Z"
+                              fill="currentColor"
+                            />
+                            <path
+                              d="M93.9676 39.0409C96.393 38.4038 97.8624 35.9116 97.0079 33.5539C95.2932 28.8227 92.871 24.3692 89.8167 20.348C85.8452 15.1192 80.8826 10.7238 75.2124 7.41289C69.5422 4.10194 63.2754 1.94025 56.7698 1.05124C51.7666 0.367541 46.6976 0.446843 41.7345 1.27873C39.2613 1.69328 37.813 4.19778 38.4501 6.62326C39.0873 9.04874 41.5694 10.4717 44.0505 10.1071C47.8511 9.54855 51.7191 9.52689 55.5402 10.0491C60.8642 10.7766 65.9928 12.5457 70.6331 15.2552C75.2735 17.9648 79.3347 21.5619 82.5849 25.841C84.9175 28.9121 86.7997 32.2913 88.1811 35.8758C89.083 38.2158 91.5421 39.6781 93.9676 39.0409Z"
+                              fill="currentFill"
+                            />
+                          </svg>
+                          <span className="sr-only">Loading...</span>
+                        </div>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={handleDepositLiquidity}
+                        disabled={!fromTokenSelected || !toTokenSelected}
+                        className={`cursor-pointer w-full py-4 mt-6 rounded-xl text-white font-bold text-lg tracking-wider transition-all duration-300 overflow-hidden group ${
+                          fromTokenSelected && toTokenSelected
+                            ? "bg-gradient-to-r from-[#8b5cf6] to-[#6d4bb1] hover:shadow-lg hover:shadow-[#8b5cf6]/20"
+                            : "bg-gray-600 cursor-not-allowed"
+                        }`}
+                      >
+                        DEPOSIT LIQUIDITY
+                      </button>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    {/* Existing Swap Mode UI */}
+                    {/* ... existing swap button ... */}
+                  </>
+                )}
+              </div>
 
               {/* Swap Status */}
               <div className="mt-4 text-center text-sm text-gray-400">
