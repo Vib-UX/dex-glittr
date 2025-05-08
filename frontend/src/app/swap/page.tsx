@@ -203,9 +203,9 @@ const calculateOutAmount = async (
             (inputTotalSupply + amount),
         },
       });
-      throw new Error(
-        `Invalid output amount: ${outputAmount}. This might be due to insufficient liquidity or too large of a swap amount.`
-      );
+      // throw new Error(
+      //   `Invalid output amount: ${outputAmount}. This might be due to insufficient liquidity or too large of a swap amount.`
+      // );
     }
 
     return outputAmount;
@@ -626,11 +626,11 @@ function SwapContent(): React.ReactElement {
         setMinOutputAmount(minOutput);
         setToTokenAmount(outAmount.toString());
       } catch (error) {
-        console.error("Error calculating output amount:", error);
-        toast.error(
-          "Error calculating output amount: " + (error as Error).message,
-          toastStyles
-        );
+        // console.error("Error calculating output amount:", error);
+        // toast.error(
+        //   "Error calculating output amount: " + (error as Error).message,
+        //   toastStyles
+        // );
       } finally {
         setIsCalculating(false);
       }
@@ -982,153 +982,134 @@ function SwapContent(): React.ReactElement {
                 >
                   <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-[#8b5cf6]/80 to-transparent"></div>
                   <p className="text-white/90">
-                    Swap {selectedPool?.linkedAssets?.asset1.ticker} for{" "}
-                    {selectedPool?.linkedAssets?.asset2.ticker} in the{" "}
-                    {selectedPool?.ticker} pool.
+                    {isDepositMode
+                      ? `Deposit liquidity for ${selectedPool?.linkedAssets?.asset1.ticker} and ${selectedPool?.linkedAssets?.asset2.ticker} in the ${selectedPool?.ticker} pool.`
+                      : `Swap ${selectedPool?.linkedAssets?.asset1.ticker} for ${selectedPool?.linkedAssets?.asset2.ticker} in the ${selectedPool?.ticker} pool.`}
                   </p>
                 </div>
 
-                {/* From Token Input */}
-                <div className="m-5 mb-3 bg-[#0a0a10] rounded-xl p-4 border border-[#1f1f30] shadow-inner">
-                  <div className="flex justify-between items-center">
-                    <input
-                      type="text"
-                      value={fromTokenAmount}
-                      onChange={(e) => setFromTokenAmount(e.target.value)}
-                      className="w-2/3 bg-transparent text-3xl font-medium focus:outline-none"
-                    />
-                    <div className="flex items-center px-4 py-2 bg-[#131320] rounded-lg border border-[#333333]/50">
-                      <div className="w-6 h-6 rounded-full bg-orange-500 flex items-center justify-center mr-2">
-                        {fromTokenSelected?.ticker.charAt(0)}
+                {!isDepositMode && (
+                  <>
+                    {/* From Token Input */}
+                    <div className="m-5 mb-3 bg-[#0a0a10] rounded-xl p-4 border border-[#1f1f30] shadow-inner">
+                      <div className="flex justify-between items-center">
+                        <input
+                          type="text"
+                          value={fromTokenAmount}
+                          onChange={(e) => setFromTokenAmount(e.target.value)}
+                          className="w-2/3 bg-transparent text-3xl font-medium focus:outline-none"
+                        />
+                        <div className="flex items-center px-4 py-2 bg-[#131320] rounded-lg border border-[#333333]/50">
+                          <div className="w-6 h-6 rounded-full bg-orange-500 flex items-center justify-center mr-2">
+                            {fromTokenSelected?.ticker.charAt(0)}
+                          </div>
+                          <span>{fromTokenSelected?.ticker}</span>
+                        </div>
                       </div>
-                      <span>{fromTokenSelected?.ticker}</span>
-                    </div>
-                  </div>
-                  <div className="flex justify-end text-gray-400 text-sm mt-2">
-                    <span>Balance: {fromTokenBalance}</span>
-                  </div>
-                </div>
-
-                {/* Swap Direction Button */}
-                <div className="flex justify-center -my-2 relative z-10">
-                  <button
-                    onClick={handleSwapDirection}
-                    className="w-14 h-14 rounded-full bg-[#131320] border-4 border-[#0f0f1a] flex items-center justify-center shadow-lg hover:bg-[#1f1f30] transition-all duration-300"
-                  >
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-r from-[#8b5cf6] to-[#6d4bb1] flex items-center justify-center">
-                      <FiArrowDown className="w-6 h-6 text-white" />
-                    </div>
-                  </button>
-                </div>
-
-                {/* To Token Input */}
-                <div className="m-5 mt-3 bg-[#0a0a10] rounded-xl p-4 border border-[#1f1f30] shadow-inner">
-                  <div className="flex justify-between items-center">
-                    <input
-                      type="text"
-                      value={toTokenAmount}
-                      onChange={(e) => setToTokenAmount(e.target.value)}
-                      className="w-2/3 bg-transparent text-3xl font-medium focus:outline-none"
-                    />
-                    <div className="flex items-center px-4 py-2 bg-[#131320] rounded-lg border border-[#333333]/50">
-                      <div className="w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center mr-2">
-                        {toTokenSelected?.ticker.charAt(0)}
+                      <div className="flex justify-end text-gray-400 text-sm mt-2">
+                        <span>Balance: {fromTokenBalance}</span>
                       </div>
-                      <span>{toTokenSelected?.ticker}</span>
                     </div>
-                  </div>
-                  <div className="flex justify-end text-gray-400 text-sm mt-2">
-                    <span>Balance: {toTokenBalance}</span>
-                  </div>
-                </div>
 
-                {/* Update Slippage Settings */}
-                <div className="m-5 mt-3 bg-[#0a0a10] rounded-xl p-4 border border-[#1f1f30] shadow-inner">
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="text-gray-400">Slippage Tolerance</span>
-                    <div className="flex items-center space-x-2">
+                    {/* Swap Direction Button */}
+                    <div className="flex justify-center -my-2 relative z-10">
                       <button
-                        onClick={() => setSlippage(5)}
-                        className={`px-2 py-1 rounded ${
-                          slippage === 5
-                            ? "bg-[#8b5cf6] text-white"
-                            : "bg-[#131320] text-gray-400"
-                        }`}
+                        onClick={handleSwapDirection}
+                        className="w-14 h-14 rounded-full bg-[#131320] border-4 border-[#0f0f1a] flex items-center justify-center shadow-lg hover:bg-[#1f1f30] transition-all duration-300"
                       >
-                        5%
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-r from-[#8b5cf6] to-[#6d4bb1] flex items-center justify-center">
+                          <FiArrowDown className="w-6 h-6 text-white" />
+                        </div>
                       </button>
-                      <button
-                        onClick={() => setSlippage(10)}
-                        className={`px-2 py-1 rounded ${
-                          slippage === 10
-                            ? "bg-[#8b5cf6] text-white"
-                            : "bg-[#131320] text-gray-400"
-                        }`}
-                      >
-                        10%
-                      </button>
-                      <button
-                        onClick={() => setSlippage(15)}
-                        className={`px-2 py-1 rounded ${
-                          slippage === 15
-                            ? "bg-[#8b5cf6] text-white"
-                            : "bg-[#131320] text-gray-400"
-                        }`}
-                      >
-                        15%
-                      </button>
-                      <input
-                        type="number"
-                        value={slippage}
-                        onChange={(e) =>
-                          setSlippage(parseFloat(e.target.value) || 0)
-                        }
-                        className="w-16 px-2 py-1 bg-[#131320] text-white rounded border border-[#333333]/50"
-                        min="0.1"
-                        max="100"
-                        step="0.1"
-                      />
-                      <span className="text-gray-400">%</span>
                     </div>
-                  </div>
-                </div>
 
-                {/* Add Swap Info */}
-                {isCalculating ? (
-                  <div className="m-5 mt-3 bg-[#0a0a10] rounded-xl p-4 border border-[#1f1f30] shadow-inner">
-                    <div className="flex items-center justify-center text-gray-400">
-                      <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-[#8b5cf6] mr-2"></div>
-                      Calculating...
-                    </div>
-                  </div>
-                ) : calculatedOutput > 0 ? (
-                  <div className="m-5 mt-3 bg-[#0a0a10] rounded-xl p-4 border border-[#1f1f30] shadow-inner">
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-400">Expected Output</span>
-                        <span className="text-white">
-                          {calculatedOutput} {toTokenSelected?.ticker}
-                        </span>
+                    {/* To Token Input */}
+                    <div className="m-5 mt-3 bg-[#0a0a10] rounded-xl p-4 border border-[#1f1f30] shadow-inner">
+                      <div className="flex justify-between items-center">
+                        <input
+                          type="text"
+                          value={toTokenAmount}
+                          onChange={(e) => setToTokenAmount(e.target.value)}
+                          className="w-2/3 bg-transparent text-3xl font-medium focus:outline-none"
+                        />
+                        <div className="flex items-center px-4 py-2 bg-[#131320] rounded-lg border border-[#333333]/50">
+                          <div className="w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center mr-2">
+                            {toTokenSelected?.ticker.charAt(0)}
+                          </div>
+                          <span>{toTokenSelected?.ticker}</span>
+                        </div>
                       </div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-400">Minimum Received</span>
-                        <span className="text-white">
-                          {minOutputAmount} {toTokenSelected?.ticker}
-                        </span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-400">Price Impact</span>
-                        <span className="text-white">
-                          {(
-                            (parseFloat(fromTokenAmount) / calculatedOutput) *
-                            100
-                          ).toFixed(2)}
-                          %
-                        </span>
+                      <div className="flex justify-end text-gray-400 text-sm mt-2">
+                        <span>Balance: {toTokenBalance}</span>
                       </div>
                     </div>
-                  </div>
-                ) : null}
+
+                    {/* Update Slippage Settings */}
+                    <div className="m-5 mt-3 bg-[#0a0a10] rounded-xl p-4 border border-[#1f1f30] shadow-inner">
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-400">
+                          Slippage Tolerance
+                        </span>
+                        <div className="flex items-center space-x-2">
+                          <input
+                            type="number"
+                            value={slippage}
+                            onChange={(e) =>
+                              setSlippage(parseFloat(e.target.value) || 0)
+                            }
+                            className="w-16 px-2 py-1 bg-[#131320] text-white rounded border border-[#333333]/50"
+                            min="0.1"
+                            max="100"
+                            step="0.1"
+                          />
+                          <span className="text-gray-400">%</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Add Swap Info */}
+                    {isCalculating ? (
+                      <div className="m-5 mt-3 bg-[#0a0a10] rounded-xl p-4 border border-[#1f1f30] shadow-inner">
+                        <div className="flex items-center justify-center text-gray-400">
+                          <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-[#8b5cf6] mr-2"></div>
+                          Calculating...
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="m-5 mt-3 bg-[#0a0a10] rounded-xl p-4 border border-[#1f1f30] shadow-inner">
+                        <div className="space-y-2">
+                          <div className="flex justify-between text-sm">
+                            <span className="text-gray-400">
+                              Expected Output
+                            </span>
+                            <span className="text-white">
+                              {calculatedOutput} {toTokenSelected?.ticker}
+                            </span>
+                          </div>
+                          <div className="flex justify-between text-sm">
+                            <span className="text-gray-400">
+                              Minimum Received
+                            </span>
+                            <span className="text-white">
+                              {minOutputAmount} {toTokenSelected?.ticker}
+                            </span>
+                          </div>
+                          <div className="flex justify-between text-sm">
+                            <span className="text-gray-400">Price Impact</span>
+                            <span className="text-white">
+                              {(
+                                (parseFloat(fromTokenAmount) /
+                                  calculatedOutput) *
+                                100
+                              ).toFixed(2)}
+                              %
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
 
                 {isDepositMode ? (
                   <>
@@ -1190,8 +1171,18 @@ function SwapContent(): React.ReactElement {
                   </>
                 ) : (
                   <>
-                    {/* Existing Swap Mode UI */}
-                    {/* ... existing swap button ... */}
+                    {/* Swap Button */}
+                    <button
+                      onClick={handleSwap}
+                      disabled={!fromTokenSelected || !toTokenSelected}
+                      className={`cursor-pointer w-full py-4 mt-6 rounded-xl text-white font-bold text-lg tracking-wider transition-all duration-300 overflow-hidden group ${
+                        fromTokenSelected && toTokenSelected
+                          ? "bg-gradient-to-r from-[#8b5cf6] to-[#6d4bb1] hover:shadow-lg hover:shadow-[#8b5cf6]/20"
+                          : "bg-gray-600 cursor-not-allowed"
+                      }`}
+                    >
+                      SWAP
+                    </button>
                   </>
                 )}
               </div>
