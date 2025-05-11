@@ -51,9 +51,6 @@ interface ApiResponse {
 }
 
 // Add utility functions
-const sumArray = (arr: any[]) =>
-  arr.reduce((total, current) => total + current, 0);
-
 const contractTupleToString = (contract: [number, number]) => {
   return contract[0] + ":" + contract[1];
 };
@@ -268,8 +265,9 @@ function SwapContent(): React.ReactElement {
     publicKey: string;
   } | null;
 
-  const account: Account =
-    connected && paymentPublicKey && paymentAddress
+  // Using useMemo to prevent the account initialization from causing rerenders
+  const account = React.useMemo<Account>(() => {
+    return connected && paymentPublicKey && paymentAddress
       ? {
           p2wpkh: () => ({
             address: paymentAddress,
@@ -284,6 +282,36 @@ function SwapContent(): React.ReactElement {
           publicKey: paymentPublicKey,
         }
       : null;
+  }, [connected, paymentPublicKey, paymentAddress]);
+
+  // Define handlePoolSelect with useCallback before using it in useEffect
+  const handlePoolSelect = React.useCallback(
+    (pool: ContractInfo): void => {
+      console.log("Selected pool:", pool);
+      setSelectedPool(pool);
+      setShowPoolSelection(false);
+
+      // Pre-select the tokens based on the pool's assets
+      if (pool.linkedAssets) {
+        setFromTokenSelected({
+          ticker: pool.linkedAssets.asset1.ticker,
+          contractId: pool.linkedAssets.asset1.contractId,
+          supply: "0",
+          amountPerMint: "0",
+        });
+        setToTokenSelected({
+          ticker: pool.linkedAssets.asset2.ticker,
+          contractId: pool.linkedAssets.asset2.contractId,
+          supply: "0",
+          amountPerMint: "0",
+        });
+      }
+
+      // Update URL with the pool ticker as a query parameter
+      router.push(`/swap?ticker=${encodeURIComponent(pool.ticker)}`);
+    },
+    [router]
+  );
 
   useEffect(() => {
     function handleClickOutside(): void {
@@ -305,7 +333,7 @@ function SwapContent(): React.ReactElement {
         handlePoolSelect(pool);
       }
     }
-  }, [searchParams, pools]);
+  }, [searchParams, pools, handlePoolSelect]);
 
   useEffect(() => {
     // Fetch and process the list of AMM pools
@@ -598,31 +626,6 @@ function SwapContent(): React.ReactElement {
     }
   };
 
-  const handlePoolSelect = (pool: ContractInfo): void => {
-    console.log("Selected pool:", pool);
-    setSelectedPool(pool);
-    setShowPoolSelection(false);
-
-    // Pre-select the tokens based on the pool's assets
-    if (pool.linkedAssets) {
-      setFromTokenSelected({
-        ticker: pool.linkedAssets.asset1.ticker,
-        contractId: pool.linkedAssets.asset1.contractId,
-        supply: "0",
-        amountPerMint: "0",
-      });
-      setToTokenSelected({
-        ticker: pool.linkedAssets.asset2.ticker,
-        contractId: pool.linkedAssets.asset2.contractId,
-        supply: "0",
-        amountPerMint: "0",
-      });
-    }
-
-    // Update URL with the pool ticker as a query parameter
-    router.push(`/swap?ticker=${encodeURIComponent(pool.ticker)}`);
-  };
-
   // Add effect to fetch balances when tokens are selected
   useEffect(() => {
     const fetchBalances = async (): Promise<void> => {
@@ -724,12 +727,8 @@ function SwapContent(): React.ReactElement {
         const minOutput = Math.floor(outAmount - (outAmount * slippage) / 100);
         setMinOutputAmount(minOutput);
         setToTokenAmount(outAmount.toString());
-      } catch (error) {
-        // console.error("Error calculating output amount:", error);
-        // toast.error(
-        //   "Error calculating output amount: " + (error as Error).message,
-        //   toastStyles
-        // );
+      } catch {
+        // Silent catch - errors are already logged in calculateOutAmount
       } finally {
         setIsCalculating(false);
       }
