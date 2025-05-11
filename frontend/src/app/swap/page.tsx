@@ -24,9 +24,11 @@ import { Psbt } from "bitcoinjs-lib";
 import toast from "react-hot-toast";
 import MyModal from "@/components/modal";
 import SwapModal from "@/components/swapModal";
+import LiquidityDepositModal from "@/components/liquidityDepositModal";
 import { toastStyles } from "@/components/helpers";
 import { ContractInfo } from "../tokens/page";
 import { client, NETWORK } from "../Provider";
+import { depositLiquidity } from "@/utils/deposit-liquidity";
 
 interface ContractRawInfo {
   ticker?: string;
@@ -255,6 +257,9 @@ function SwapContent(): React.ReactElement {
   const [isDepositMode, setIsDepositMode] = useState<boolean>(false);
   const [depositAmount, setDepositAmount] = useState<string>("0.00");
   const [depositLoading, setDepositLoading] = useState<boolean>(false);
+  const [depositTxLink, setDepositTxLink] = useState<string>("");
+  const [isDepositModalOpen, setIsDepositModalOpen] = useState(false);
+  const [isConfirmingDeposit, setIsConfirmingDeposit] = useState(false);
 
   // Properly typed account object
   type Account = {
@@ -771,184 +776,46 @@ function SwapContent(): React.ReactElement {
       });
       return;
     }
-    try {
-      console.log("Starting liquidity deposit to AMM...");
-      const contractParts = selectedPool.contractId.split(":");
-      const contract: [number, number] = [
-        parseInt(contractParts[0]),
-        parseInt(contractParts[1]),
-      ];
-      console.log("AMM Contract:", contract);
 
-      // Get contract pair information from the AMM contract
-      console.log("Fetching AMM contract info...");
-      const contractInfo = await client.getGlittrMessage(
-        contract[0],
-        contract[1]
-      );
-      console.log("AMM Contract Info:", contractInfo);
+    setDepositLoading(true);
+    setIsConfirmingDeposit(true);
+    setIsDepositModalOpen(true);
 
-      const firstContract: [number, number] = [
-        parseInt(fromTokenSelected.contractId.slice(0, 7)),
-        1,
-      ];
-
-      const secondContract: [number, number] = [
-        parseInt(toTokenSelected.contractId.slice(0, 7)),
-        1,
-      ];
-
-      console.log(`First contract: ${firstContract[0]}:${firstContract[1]}`);
-      console.log(`Second contract: ${secondContract[0]}:${secondContract[1]}`);
-
-      // Get your address' UTXO that contains the Assets
-      console.log("Fetching asset UTXOs...");
-      const inputAssetsFirst = await client.getAssetUtxos(
-        paymentAddress,
-        `${parseInt(fromTokenSelected.contractId.slice(0, 7))}:${1}`
-      );
-      const inputAssetsSecond = await client.getAssetUtxos(
-        paymentAddress,
-        `${parseInt(toTokenSelected.contractId.slice(0, 7))}:${1}`
-      );
-
-      console.log("First asset UTXOs:", inputAssetsFirst);
-      console.log("Second asset UTXOs:", inputAssetsSecond);
-
-      // Check if you don't have the assets
-      if (inputAssetsFirst.length === 0) {
-        throw new Error(
-          `You do not have assets for ${firstContract[0]}:${firstContract[1]}`
-        );
-      }
-
-      if (inputAssetsSecond.length === 0) {
-        throw new Error(
-          `You do not have assets for ${secondContract[0]}:${secondContract[1]}`
-        );
-      }
-
-      // Calculate total assets
-      const totalHoldFirstAsset = inputAssetsFirst.reduce(
-        (sum, item) => sum + parseInt(item.assetAmount),
-        0
-      );
-      const totalHoldSecondAsset = inputAssetsSecond.reduce(
-        (sum, item) => sum + parseInt(item.assetAmount),
-        0
-      );
-
-      console.log(
-        `Total hold ${firstContract[0]}:${firstContract[1]}: ${totalHoldFirstAsset}`
-      );
-      console.log(
-        `Total hold ${secondContract[0]}:${secondContract[1]}: ${totalHoldSecondAsset}`
-      );
-
-      // Set how much you want to transfer for AMM liquidity
-      const firstContractAmountForLiquidity = +depositAmount;
-      const secondContractAmountForLiquidity = +depositAmount;
-
-      if (firstContractAmountForLiquidity > totalHoldFirstAsset) {
-        throw new Error(
-          `Amount for contract ${firstContract[0]}:${firstContract[1]} insufficient`
-        );
-      }
-
-      if (secondContractAmountForLiquidity > totalHoldSecondAsset) {
-        throw new Error(
-          `Amount for contract ${secondContract[0]}:${secondContract[1]} insufficient`
-        );
-      }
-
-      const backendTx: OpReturnMessage = {
-        contract_call: {
-          contract,
-          call_type: {
-            mint: {
-              pointer: 1,
-            },
-          },
-        },
-        transfer: {
-          transfers: [
-            {
-              asset: firstContract,
-              output: 1,
-              amount: (
-                totalHoldFirstAsset - firstContractAmountForLiquidity
-              ).toString(),
-            },
-            {
-              asset: secondContract,
-              output: 1,
-              amount: (
-                totalHoldSecondAsset - secondContractAmountForLiquidity
-              ).toString(),
-            },
-          ],
-        },
-      };
-
-      console.log("Backend transaction object:", backendTx);
-
-      const txResp = txBuilder.customMessage(backendTx);
-      console.log("Transaction response:", txResp);
-
-      console.log("Creating transaction with client...");
-      const tokenPsbt = await client.createTx({
-        address: paymentAddress,
-        tx: txResp,
-        outputs: [],
-        publicKey: paymentPublicKey,
-      });
-      console.log("PSBT created:", tokenPsbt);
-
-      console.log("Signing PSBT...");
-      const depositLiquidityResult = await signPsbt(
-        tokenPsbt.toHex(),
-        false,
-        false
-      );
-      console.log("PSBT signing result:", depositLiquidityResult);
-
-      if (!depositLiquidityResult?.signedPsbtHex) {
-        throw new Error("Failed to sign transaction");
-      }
-
-      const finalizedPsbt = Psbt.fromHex(depositLiquidityResult.signedPsbtHex);
-      finalizedPsbt.finalizeAllInputs();
-      const txHex = finalizedPsbt.extractTransaction(true).toHex();
-      console.log("Broadcasting transaction...");
-      const txid = await client.broadcastTx(txHex);
-      console.log("Transaction broadcasted with ID:", txid);
-      setBlockDepositeLink(txid);
-
-      console.log("Waiting for message confirmation...");
-      while (true) {
-        try {
-          const message = await client.getGlittrMessageByTxId(txid);
-          console.log("Message received:", message);
-          setBlockDepositeLink(message.block_tx);
-          break;
-        } catch (error) {
-          console.log(error);
-          console.log("Waiting for message confirmation...");
-          await new Promise((resolve) => setTimeout(resolve, 5000)); // Retry every 5 seconds
-        }
-      }
-      setIsOpen(true);
-      setDepositLoading(false);
-      console.log("Liquidity deposit completed successfully");
-      toast.success("Liquidity deposit completed successfully", toastStyles);
-    } catch (error) {
-      setDepositLoading(false);
-      console.error("Error depositing liquidity:", error);
-      toast.error(
-        "Error depositing liquidity: " + (error as Error).message,
-        toastStyles
-      );
-    }
+    // Use the shared depositLiquidity utility
+    await depositLiquidity({
+      ammContractId: selectedPool.contractId.split(":").map(Number) as [
+        number,
+        number
+      ],
+      firstToken: {
+        contractId: fromTokenSelected.contractId,
+        ticker: fromTokenSelected.ticker,
+      },
+      secondToken: {
+        contractId: toTokenSelected.contractId,
+        ticker: toTokenSelected.ticker,
+      },
+      paymentAddress,
+      paymentPublicKey,
+      signPsbt,
+      depositAmount,
+      onStart: () => {
+        console.log("Starting liquidity deposit process...");
+      },
+      onSuccess: (txid, blockTx) => {
+        setDepositTxLink(txid);
+        setBlockDepositeLink(blockTx);
+        setIsConfirmingDeposit(false);
+      },
+      onError: (error) => {
+        console.error("Error in deposit liquidity:", error);
+        setIsDepositModalOpen(false);
+        toast.error(`Error: ${error.message}`, toastStyles);
+      },
+      onComplete: () => {
+        setDepositLoading(false);
+      },
+    });
   };
 
   return (
@@ -971,6 +838,17 @@ function SwapContent(): React.ReactElement {
           fromToken={fromTokenSelected?.ticker}
           toToken={toTokenSelected?.ticker}
           isConfirming={isConfirmingSwap}
+        />
+      )}
+      {isDepositModalOpen && (
+        <LiquidityDepositModal
+          isOpen={isDepositModalOpen}
+          setIsOpen={setIsDepositModalOpen}
+          txLink={depositTxLink}
+          firstToken={fromTokenSelected?.ticker}
+          secondToken={toTokenSelected?.ticker}
+          poolName={selectedPool?.ticker}
+          isConfirming={isConfirmingDeposit}
         />
       )}
       <div className="min-h-screen bg-[#1e1c1f] text-white font-mono relative overflow-hidden">
