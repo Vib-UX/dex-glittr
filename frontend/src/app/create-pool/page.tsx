@@ -36,6 +36,9 @@ export default function CreatePool(): React.ReactElement {
   const [depositTxLink, setDepositTxLink] = useState<string>("");
   const [isDepositModalOpen, setIsDepositModalOpen] = useState(false);
   const [isConfirmingDeposit, setIsConfirmingDeposit] = useState(false);
+  const [tokenBalances, setTokenBalances] = useState<Record<string, number>>(
+    {}
+  );
 
   // Properly typed account object
   type Account = {
@@ -328,6 +331,56 @@ export default function CreatePool(): React.ReactElement {
     run();
   }, []);
 
+  // Add a new effect to fetch token balances when wallet is connected and contracts are loaded
+  useEffect(() => {
+    const fetchTokenBalances = async () => {
+      if (!connected || !paymentAddress || !contracts) return;
+
+      console.log("Fetching token balances for connected wallet...");
+      const balances: Record<string, number> = {};
+
+      try {
+        // Fetch balances for each token contract
+        for (const contract of contracts) {
+          const contractId = contract.contractId;
+          const [blockId, index] = contractId.split(":");
+
+          try {
+            const assetUtxos = await client.getAssetUtxos(
+              paymentAddress,
+              `${parseInt(blockId)}:${index}`
+            );
+
+            // Calculate total balance from UTXOs
+            const total = assetUtxos.reduce(
+              (sum, utxo) => sum + parseInt(utxo.assetAmount),
+              0
+            );
+
+            balances[contractId] = total;
+            console.log(
+              `Balance for ${contract.ticker} (${contractId}): ${total}`
+            );
+          } catch (error) {
+            console.error(`Error fetching balance for ${contractId}:`, error);
+            balances[contractId] = 0;
+          }
+        }
+
+        setTokenBalances(balances);
+        console.log("All token balances fetched:", balances);
+      } catch (error) {
+        console.error("Error fetching token balances:", error);
+        toast.error(
+          "Error fetching token balances: " + (error as Error).message,
+          toastStyles
+        );
+      }
+    };
+
+    fetchTokenBalances();
+  }, [connected, paymentAddress, contracts]);
+
   // Token selection handlers
   const selectFirstToken = (token: ContractInfo): void => {
     console.log("First token selected:", token);
@@ -425,23 +478,32 @@ export default function CreatePool(): React.ReactElement {
 
                   {showFirstDropdown && contracts && (
                     <div className="absolute right-0 mt-2 w-64 bg-[#0a0a10] rounded-lg border border-[#1f1f30] shadow-xl z-50 max-h-60 overflow-y-auto">
-                      {contracts.map((token) => (
-                        <div
-                          key={token.contractId}
-                          className="flex items-center px-4 py-3 hover:bg-[#131320] cursor-pointer border-b border-[#1f1f30] last:border-b-0"
-                          onClick={() => selectFirstToken(token)}
-                        >
-                          <div className="w-8 h-8 rounded-full bg-purple-500 flex items-center justify-center mr-2">
-                            {token.ticker.charAt(0)}
-                          </div>
-                          <div>
-                            <div className="font-medium">{token.ticker}</div>
-                            <div className="text-xs text-gray-400">
-                              Supply: {token.supply}
+                      {contracts
+                        .filter((token) => tokenBalances[token.contractId] > 0)
+                        .map((token) => (
+                          <div
+                            key={token.contractId}
+                            className="flex items-center px-4 py-3 hover:bg-[#131320] cursor-pointer border-b border-[#1f1f30] last:border-b-0"
+                            onClick={() => selectFirstToken(token)}
+                          >
+                            <div className="w-8 h-8 rounded-full bg-purple-500 flex items-center justify-center mr-2">
+                              {token.ticker.charAt(0)}
+                            </div>
+                            <div>
+                              <div className="font-medium">{token.ticker}</div>
+                              <div className="text-xs text-gray-400">
+                                Balance: {tokenBalances[token.contractId] || 0}
+                              </div>
                             </div>
                           </div>
+                        ))}
+                      {contracts.filter(
+                        (token) => tokenBalances[token.contractId] > 0
+                      ).length === 0 && (
+                        <div className="px-4 py-3 text-gray-400 text-center">
+                          No tokens in wallet. Please mint tokens first.
                         </div>
-                      ))}
+                      )}
                     </div>
                   )}
                 </div>
@@ -449,7 +511,9 @@ export default function CreatePool(): React.ReactElement {
               <div className="flex justify-end text-gray-400 text-sm mt-2">
                 <span>
                   Balance:{" "}
-                  {firstTokenSelected ? firstTokenSelected.amountPerMint : "0"}
+                  {firstTokenSelected
+                    ? tokenBalances[firstTokenSelected.contractId] || 0
+                    : "0"}
                 </span>
               </div>
             </div>
@@ -494,8 +558,10 @@ export default function CreatePool(): React.ReactElement {
                       {contracts
                         .filter(
                           (token) =>
-                            !firstTokenSelected ||
-                            token.contractId !== firstTokenSelected.contractId
+                            (!firstTokenSelected ||
+                              token.contractId !==
+                                firstTokenSelected.contractId) &&
+                            tokenBalances[token.contractId] > 0
                         )
                         .map((token) => (
                           <div
@@ -509,11 +575,22 @@ export default function CreatePool(): React.ReactElement {
                             <div>
                               <div className="font-medium">{token.ticker}</div>
                               <div className="text-xs text-gray-400">
-                                Supply: {token.supply}
+                                Balance: {tokenBalances[token.contractId] || 0}
                               </div>
                             </div>
                           </div>
                         ))}
+                      {contracts.filter(
+                        (token) =>
+                          (!firstTokenSelected ||
+                            token.contractId !==
+                              firstTokenSelected.contractId) &&
+                          tokenBalances[token.contractId] > 0
+                      ).length === 0 && (
+                        <div className="px-4 py-3 text-gray-400 text-center">
+                          No more tokens available in wallet.
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -522,7 +599,7 @@ export default function CreatePool(): React.ReactElement {
                 <span>
                   Balance:{" "}
                   {secondTokenSelected
-                    ? secondTokenSelected.amountPerMint
+                    ? tokenBalances[secondTokenSelected.contractId] || 0
                     : "0"}
                 </span>
               </div>
