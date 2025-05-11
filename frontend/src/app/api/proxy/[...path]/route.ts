@@ -83,8 +83,8 @@ export async function POST(
 }
 
 // Handle OPTIONS requests for CORS preflight
-export async function OPTIONS(request: NextRequest) {
-  // We don't need params for OPTIONS request
+export async function OPTIONS() {
+  // We don't use the request parameter for OPTIONS
   return new NextResponse(null, {
     status: 204,
     headers: {
