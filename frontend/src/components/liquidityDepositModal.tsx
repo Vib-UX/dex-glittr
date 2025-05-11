@@ -60,8 +60,8 @@ export default function LiquidityDepositModal({
                   {firstToken && secondToken && poolName && (
                     <span>
                       {" "}
-                      You've added liquidity for {firstToken} and {secondToken}{" "}
-                      in the {poolName} pool.
+                      You&apos;ve added liquidity for {firstToken} and{" "}
+                      {secondToken} in the {poolName} pool.
                     </span>
                   )}
                 </p>
