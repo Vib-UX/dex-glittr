@@ -54,7 +54,7 @@ const Navbar = () => {
           (item, index) => {
             const path =
               item === "CREATE POOL"
-                ? "/"
+                ? "/create-pool"
                 : item === "CREATE TOKENS"
                 ? "/create-token"
                 : item === "TOKENS"
