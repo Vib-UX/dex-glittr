@@ -1,657 +1,803 @@
-'use client';
-import { useEffect, useState, useRef } from 'react';
-import { FaGlobe, FaTelegram, FaTwitter, FaChevronDown } from 'react-icons/fa';
-import { FiPlus } from 'react-icons/fi';
+"use client";
+import React, { useEffect, useState, useRef } from "react";
+import { FaGlobe, FaTelegram, FaTwitter, FaChevronDown } from "react-icons/fa";
+import { FiPlus } from "react-icons/fi";
 
-import { useLaserEyes } from '@glittr-sdk/lasereyes';
-import {
-    addFeeToTx,
-    BitcoinUTXO,
-    BlockTxTuple,
-    electrumFetchNonGlittrUtxos,
-    OpReturnMessage,
-    Output,
-    txBuilder,
-} from '@glittr-sdk/sdk';
-import { Psbt } from 'bitcoinjs-lib';
+import { useLaserEyes } from "@glittr-sdk/lasereyes";
+import { BlockTxTuple, OpReturnMessage, txBuilder } from "@glittr-sdk/sdk";
+import { Psbt } from "bitcoinjs-lib";
 
-import toast from 'react-hot-toast';
-import MyModal from '@/components/modal';
-import { toastStyles } from '@/components/helpers';
-import { ContractInfo } from './tokens/page';
-import { client, NETWORK } from './Provider';
+import toast from "react-hot-toast";
+import MyModal from "@/components/modal";
+import { toastStyles } from "@/components/helpers";
+import { ContractInfo } from "./tokens/page";
+import { client, NETWORK } from "./Provider";
 
-export default function CreatePool() {
-    const [firstTokenAmount, setFirstTokenAmount] = useState<string>('0.00');
-    const [firstTokenSelected, setFirstTokenSelected] =
-        useState<ContractInfo | null>(null);
-    const [secondTokenSelected, setSecondTokenSelected] =
-        useState<ContractInfo | null>(null);
-    const [blockDepositeLink, setBlockDepositeLink] = useState<string>('');
-    const [isOpen, setIsOpen] = useState(false);
-    const [blockTuble, setBlockTuble] = useState('');
-    const [depositLink, setDepositLink] = useState<string>('');
-    const [showFirstDropdown, setShowFirstDropdown] = useState<boolean>(false);
-    const [showSecondDropdown, setShowSecondDropdown] =
-        useState<boolean>(false);
-    const firstDropdownRef = useRef<HTMLDivElement>(null);
-    const secondDropdownRef = useRef<HTMLDivElement>(null);
-    const [loading, setLoading] = useState<boolean>(false);
-    const [amContract, setAmContract] = useState<string>('');
-    const { paymentAddress, connected, signPsbt, paymentPublicKey } =
-        useLaserEyes();
+export default function CreatePool(): React.ReactElement {
+  const [firstTokenAmount, setFirstTokenAmount] = useState<string>("0.00");
+  const [firstTokenSelected, setFirstTokenSelected] =
+    useState<ContractInfo | null>(null);
+  const [secondTokenSelected, setSecondTokenSelected] =
+    useState<ContractInfo | null>(null);
+  const [blockDepositeLink, setBlockDepositeLink] = useState<string>("");
+  const [isOpen, setIsOpen] = useState(false);
+  const [blockTuble, setBlockTuble] = useState<string>("");
+  const [depositLink, setDepositLink] = useState<string>("");
+  const [showFirstDropdown, setShowFirstDropdown] = useState<boolean>(false);
+  const [showSecondDropdown, setShowSecondDropdown] = useState<boolean>(false);
+  const firstDropdownRef = useRef<HTMLDivElement>(null);
+  const secondDropdownRef = useRef<HTMLDivElement>(null);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [amContract, setAmContract] = useState<string>("");
+  const { paymentAddress, connected, signPsbt, paymentPublicKey } =
+    useLaserEyes();
 
-    // Properly typed account object
-    type Account = {
-        p2wpkh: () => { address: string };
-        network: typeof NETWORK;
-        p2pkh: () => { address: string };
-        p2tr: () => { address: string };
-        publicKey: string;
-    } | null;
+  // Properly typed account object
+  type Account = {
+    p2wpkh: () => { address: string };
+    network: typeof NETWORK;
+    p2pkh: () => { address: string };
+    p2tr: () => { address: string };
+    publicKey: string;
+  } | null;
 
-    const account: Account =
-        connected && paymentPublicKey && paymentAddress
-            ? {
-                  p2wpkh: () => ({
-                      address: paymentAddress,
-                  }),
-                  network: NETWORK,
-                  p2pkh: () => ({
-                      address: paymentAddress,
-                  }),
-                  p2tr: () => ({
-                      address: paymentAddress,
-                  }),
-                  publicKey: paymentPublicKey,
-              }
-            : null;
-
-    useEffect(() => {
-        function handleClickOutside(event: MouseEvent): void {
-            if (
-                firstDropdownRef.current &&
-                !firstDropdownRef.current.contains(event.target as Node)
-            ) {
-                setShowFirstDropdown(false);
-            }
-            if (
-                secondDropdownRef.current &&
-                !secondDropdownRef.current.contains(event.target as Node)
-            ) {
-                setShowSecondDropdown(false);
-            }
+  const account: Account =
+    connected && paymentPublicKey && paymentAddress
+      ? {
+          p2wpkh: () => ({
+            address: paymentAddress,
+          }),
+          network: NETWORK,
+          p2pkh: () => ({
+            address: paymentAddress,
+          }),
+          p2tr: () => ({
+            address: paymentAddress,
+          }),
+          publicKey: paymentPublicKey,
         }
+      : null;
 
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => {
-            document.removeEventListener('mousedown', handleClickOutside);
-        };
-    }, []);
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent): void {
+      if (
+        firstDropdownRef.current &&
+        !firstDropdownRef.current.contains(event.target as Node)
+      ) {
+        setShowFirstDropdown(false);
+      }
+      if (
+        secondDropdownRef.current &&
+        !secondDropdownRef.current.contains(event.target as Node)
+      ) {
+        setShowSecondDropdown(false);
+      }
+    }
 
-    const handleCreatePool = async (): Promise<void> => {
-        if (!account || !firstTokenSelected || !secondTokenSelected) {
-            toast.error(
-                'Please connect your wallet and select both tokens',
-                toastStyles
-            );
-            return;
-        }
-        setLoading(true);
-        const randomSuffix = Math.floor(Math.random() * 1000000);
-        const ammTicker = 'AMM-market-' + randomSuffix;
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
 
-        // Extract contract IDs for the selected tokens
-        const firstContractParts = firstTokenSelected.contractId.split(':');
-        const secondContractParts = secondTokenSelected.contractId.split(':');
+  const handleCreatePool = async (): Promise<void> => {
+    if (!account || !firstTokenSelected || !secondTokenSelected) {
+      console.log("Missing required data:", {
+        account,
+        firstTokenSelected,
+        secondTokenSelected,
+      });
+      toast.error(
+        "Please connect your wallet and select both tokens",
+        toastStyles
+      );
+      return;
+    }
+    console.log("Starting pool creation with:", {
+      firstToken: firstTokenSelected,
+      secondToken: secondTokenSelected,
+      account,
+    });
+    setLoading(true);
+    const randomSuffix = Math.floor(Math.random() * 1000000);
+    const ammTicker = "AMM-market-" + randomSuffix;
+    console.log("Generated AMM ticker:", ammTicker);
 
-        const txResp = txBuilder.contractInstantiate({
+    // Extract contract IDs for the selected tokens
+    const firstContractParts = firstTokenSelected.contractId.split(":");
+    const secondContractParts = secondTokenSelected.contractId.split(":");
+
+    // const txResp = txBuilder.contractInstantiate({
+    //   ticker: ammTicker,
+    //   divisibility: 18,
+    //   live_time: 0,
+    //   mint_mechanism: {
+    //     collateralized: {
+    //       input_assets: [
+    //         {
+    //           glittr_asset: [
+    //             parseInt(firstContractParts[0]),
+    //             parseInt(firstContractParts[1]),
+    //           ],
+    //         },
+    //         {
+    //           glittr_asset: [
+    //             parseInt(secondContractParts[0]),
+    //             parseInt(secondContractParts[1]),
+    //           ],
+    //         },
+    //       ],
+    //       _mutable_assets: false,
+    //       mint_structure: {
+    //         proportional: {
+    //           ratio_model: "constant_product",
+    //         },
+    //       },
+    //     },
+    //   },
+    // });
+
+    const backendTx: OpReturnMessage = {
+      contract_creation: {
+        contract_type: {
+          mba: {
             ticker: ammTicker,
             divisibility: 18,
             live_time: 0,
             mint_mechanism: {
-                collateralized: {
-                    input_assets: [
-                        {
-                            glittr_asset: [
-                                parseInt(firstContractParts[0]),
-                                parseInt(firstContractParts[1]),
-                            ],
-                        },
-                        {
-                            glittr_asset: [
-                                parseInt(secondContractParts[0]),
-                                parseInt(secondContractParts[1]),
-                            ],
-                        },
+              collateralized: {
+                input_assets: [
+                  {
+                    glittr_asset: [
+                      parseInt(firstContractParts[0]),
+                      parseInt(firstContractParts[1]),
                     ],
-                    _mutable_assets: false,
-                    mint_structure: {
-                        proportional: {
-                            ratio_model: 'constant_product',
-                        },
-                    },
+                  },
+                  {
+                    glittr_asset: [
+                      parseInt(secondContractParts[0]),
+                      parseInt(secondContractParts[1]),
+                    ],
+                  },
+                ],
+                _mutable_assets: false,
+                mint_structure: {
+                  proportional: {
+                    ratio_model: "constant_product",
+                  },
                 },
+              },
             },
-        });
+            burn_mechanism: {},
+            swap_mechanism: {},
+          },
+        },
+      },
+    };
+    console.log("Backend transaction object:", backendTx);
 
+    const txResp = txBuilder.customMessage(backendTx);
+    console.log("Transaction response:", txResp);
+
+    try {
+      console.log("Creating transaction with client...");
+      const tokenPsbt = await client.createTx({
+        address: paymentAddress,
+        tx: txResp,
+        outputs: [],
+        publicKey: paymentPublicKey,
+      });
+      console.log("PSBT created:", tokenPsbt);
+
+      console.log("Signing PSBT...");
+      const tokenResult = await signPsbt(tokenPsbt.toHex(), false, false);
+      console.log("PSBT signing result:", tokenResult);
+
+      if (!tokenResult?.signedPsbtHex) {
+        throw new Error("Failed to sign transaction");
+      }
+
+      const finalizedPsbt = Psbt.fromHex(tokenResult.signedPsbtHex);
+      finalizedPsbt.finalizeAllInputs();
+      const txHex = finalizedPsbt.extractTransaction(true).toHex();
+      console.log("Broadcasting transaction...");
+      const txid = await client.broadcastTx(txHex);
+      console.log("Transaction broadcasted with ID:", txid);
+      setAmContract(txid);
+
+      console.log("Waiting for message confirmation...");
+      let confirmedBlockTx = "";
+      while (true) {
         try {
-            const tokenPsbt = await client.createTx({
-                address: account.p2wpkh().address,
-                tx: txResp,
-                outputs: [],
-            });
-            const tokenResult = await signPsbt(tokenPsbt.toHex(), false, false);
-
-            if (!tokenResult?.signedPsbtHex) {
-                throw new Error('Failed to sign transaction');
-            }
-
-            const finalizedPsbt = Psbt.fromHex(tokenResult.signedPsbtHex);
-            finalizedPsbt.finalizeAllInputs();
-            const txHex = finalizedPsbt.extractTransaction(true).toHex();
-            const txid = await client.broadcastTx(txHex);
-            setAmContract(txid);
-            while (true) {
-                try {
-                    const message = await client.getGlittrMessageByTxId(txid);
-                    setBlockTuble(message.block_tx);
-                    break;
-                } catch {
-                    await new Promise((resolve) => setTimeout(resolve, 5000)); // Retry every 5 seconds
-                }
-            }
-            await depositLiquidity(blockTuble);
+          const message = await client.getGlittrMessageByTxId(txid);
+          console.log("Message received:", message);
+          console.log("Block TX value:", message.block_tx);
+          confirmedBlockTx = message.block_tx;
+          setBlockTuble(message.block_tx);
+          break;
         } catch (error) {
-            setLoading(false);
-            console.error('Error creating pool:', error);
-            toast.error(
-                'Error creating pool: ' + (error as Error).message,
-                toastStyles
-            );
+          console.log(error);
+          console.log("Waiting for message confirmation...");
+          await new Promise((resolve) => setTimeout(resolve, 5000)); // Retry every 5 seconds
         }
-    };
+      }
+      // Before calling deposit need to wait for 5 sec
+      await new Promise((resolve) => setTimeout(resolve, 5000));
+      setBlockTuble(confirmedBlockTx);
+      console.log("Using confirmed block TX value:", confirmedBlockTx);
+      await depositLiquidity(confirmedBlockTx);
+    } catch (error) {
+      setLoading(false);
+      console.error("Error creating pool:", error);
+      toast.error(
+        "Error creating pool: " + (error as Error).message,
+        toastStyles
+      );
+    }
+  };
 
-    const [contracts, setContracts] = useState<ContractInfo[] | null>(null);
+  const [contracts, setContracts] = useState<ContractInfo[] | null>(null);
 
-    const depositLiquidity = async (blockId: string): Promise<void> => {
-        if (!account || !firstTokenSelected || !secondTokenSelected) {
-            return;
-        }
+  const depositLiquidity = async (blockId: string): Promise<void> => {
+    if (!account || !firstTokenSelected || !secondTokenSelected) {
+      console.log("Missing required data for liquidity deposit:", {
+        account,
+        firstTokenSelected,
+        secondTokenSelected,
+      });
+      return;
+    }
+    try {
+      console.log("Starting liquidity deposit to AMM...");
+      console.log("Raw blockId value:", blockId);
+      console.log("blockId type:", typeof blockId);
+      console.log("blockId length:", blockId.length);
+      console.log("blockId slice(0,7):", blockId.slice(0, 7));
+      console.log("Parsed blockId:", parseInt(blockId.slice(0, 7)));
+
+      const contract: BlockTxTuple = [parseInt(blockId.slice(0, 7)), 1];
+      //   console.log(blockId);
+      //   const contract: BlockTxTuple = [352082, 1];
+      console.log("AMM Contract:", contract);
+
+      // Get contract pair information from the AMM contract
+      console.log("Fetching AMM contract info...");
+      const contractInfo = await client.getGlittrMessage(
+        contract[0],
+        contract[1]
+      );
+      console.log("AMM Contract Info:", contractInfo);
+
+      const firstContract: BlockTxTuple = [
+        parseInt(firstTokenSelected.contractId.slice(0, 7)),
+        1,
+      ];
+
+      const secondContract: BlockTxTuple = [
+        parseInt(secondTokenSelected.contractId.slice(0, 7)),
+        1,
+      ];
+
+      console.log(`First contract: ${firstContract[0]}:${firstContract[1]}`);
+      console.log(`Second contract: ${secondContract[0]}:${secondContract[1]}`);
+
+      // Get your address' UTXO that contains the Assets
+      console.log("Fetching asset UTXOs...");
+      const inputAssetsFirst = await client.getAssetUtxos(
+        paymentAddress,
+        `${parseInt(firstTokenSelected.contractId.slice(0, 7))}:${1}`
+      );
+      const inputAssetsSecond = await client.getAssetUtxos(
+        paymentAddress,
+        `${parseInt(secondTokenSelected.contractId.slice(0, 7))}:${1}`
+      );
+
+      console.log("First asset UTXOs:", inputAssetsFirst);
+      console.log("Second asset UTXOs:", inputAssetsSecond);
+
+      // Check if you don't have the assets
+      if (inputAssetsFirst.length === 0) {
+        throw new Error(
+          `You do not have assets for ${firstContract[0]}:${firstContract[1]}`
+        );
+      }
+
+      if (inputAssetsSecond.length === 0) {
+        throw new Error(
+          `You do not have assets for ${secondContract[0]}:${secondContract[1]}`
+        );
+      }
+
+      // Calculate total assets
+      const totalHoldFirstAsset = inputAssetsFirst.reduce(
+        (sum, item) => sum + parseInt(item.assetAmount),
+        0
+      );
+      const totalHoldSecondAsset = inputAssetsSecond.reduce(
+        (sum, item) => sum + parseInt(item.assetAmount),
+        0
+      );
+
+      console.log(
+        `Total hold ${firstContract[0]}:${firstContract[1]}: ${totalHoldFirstAsset}`
+      );
+      console.log(
+        `Total hold ${secondContract[0]}:${secondContract[1]}: ${totalHoldSecondAsset}`
+      );
+
+      // Set how much you want to transfer for AMM liquidity
+      const firstContractAmountForLiquidity = +firstTokenAmount;
+      const secondContractAmountForLiquidity = +firstTokenAmount;
+
+      if (firstContractAmountForLiquidity > totalHoldFirstAsset) {
+        throw new Error(
+          `Amount for contract ${firstContract[0]}:${firstContract[1]} insufficient`
+        );
+      }
+
+      if (secondContractAmountForLiquidity > totalHoldSecondAsset) {
+        throw new Error(
+          `Amount for contract ${secondContract[0]}:${secondContract[1]} insufficient`
+        );
+      }
+
+      //   const tx: OpReturnMessage = {
+      //     contract_call: {
+      //       contract,
+      //       call_type: {
+      //         mint: {
+      //           pointer: 1,
+      //         },
+      //       },
+      //     },
+      //     transfer: {
+      //       transfers: [
+      //         {
+      //           asset: firstContract,
+      //           output: 1,
+      //           amount: firstTokenAmount.toString(),
+      //         },
+      //         {
+      //           asset: secondContract,
+      //           output: 1,
+      //           amount: firstTokenAmount.toString(),
+      //         },
+      //       ],
+      //     },
+      //   };
+
+      const backendTx: OpReturnMessage = {
+        contract_call: {
+          contract,
+          call_type: {
+            mint: {
+              pointer: 1,
+            },
+          },
+        },
+        transfer: {
+          transfers: [
+            {
+              asset: firstContract,
+              output: 1,
+              amount: (
+                totalHoldFirstAsset - firstContractAmountForLiquidity
+              ).toString(),
+            },
+            {
+              asset: secondContract,
+              output: 1,
+              amount: (
+                totalHoldSecondAsset - secondContractAmountForLiquidity
+              ).toString(),
+            },
+          ],
+        },
+      };
+
+      console.log("Backend transaction object:", backendTx);
+
+      const txResp = txBuilder.customMessage(backendTx);
+      console.log("Transaction response:", txResp);
+
+      console.log("Creating transaction with client...");
+      const tokenPsbt = await client.createTx({
+        address: paymentAddress,
+        tx: txResp,
+        outputs: [],
+        publicKey: paymentPublicKey,
+      });
+      console.log("PSBT created:", tokenPsbt);
+
+      console.log("Signing PSBT...");
+      const depositLiquidityResult = await signPsbt(
+        tokenPsbt.toHex(),
+        false,
+        false
+      );
+      console.log("PSBT signing result:", depositLiquidityResult);
+
+      if (!depositLiquidityResult?.signedPsbtHex) {
+        throw new Error("Failed to sign transaction");
+      }
+
+      const finalizedPsbt = Psbt.fromHex(depositLiquidityResult.signedPsbtHex);
+      finalizedPsbt.finalizeAllInputs();
+      const txHex = finalizedPsbt.extractTransaction(true).toHex();
+      console.log("Broadcasting transaction...");
+      const txid = await client.broadcastTx(txHex);
+      console.log("Transaction broadcasted with ID:", txid);
+      setDepositLink(txid);
+
+      console.log("Waiting for message confirmation...");
+      while (true) {
         try {
-            const contract: BlockTxTuple = [parseInt(blockId.slice(0, 7)), 1];
-            const utxos = await electrumFetchNonGlittrUtxos(
-                client,
-                paymentAddress
-            );
-
-            const firstContract: BlockTxTuple = [
-                parseInt(firstTokenSelected.contractId.slice(0, 7)),
-                1,
-            ];
-
-            const secondContract: BlockTxTuple = [
-                parseInt(secondTokenSelected.contractId.slice(0, 7)),
-                1,
-            ];
-            const inputAssetsFirst = await client.getAssetUtxos(
-                paymentAddress,
-                `${parseInt(firstTokenSelected.contractId.slice(0, 7))}:${1}`
-            );
-            const inputAssetsSecond = await client.getAssetUtxos(
-                paymentAddress,
-                `${parseInt(secondTokenSelected.contractId.slice(0, 7))}:${1}`
-            );
-            const nonFeeInputs: BitcoinUTXO[] = [
-                ...inputAssetsFirst,
-                ...inputAssetsSecond,
-            ];
-            const tx: OpReturnMessage = {
-                contract_call: {
-                    contract,
-                    call_type: {
-                        mint: {
-                            pointer: 1,
-                        },
-                    },
-                },
-                transfer: {
-                    transfers: [
-                        {
-                            asset: firstContract,
-                            output: 1,
-                            amount: firstTokenAmount.toString(),
-                        },
-                        {
-                            asset: secondContract,
-                            output: 1,
-                            amount: firstTokenAmount.toString(),
-                        },
-                    ],
-                },
-            };
-            const nonFeeOutputs: Output[] = [
-                { script: txBuilder.compile(tx), value: 0 }, // OP_RETURN
-                { address: paymentAddress, value: 546 },
-            ];
-            const { inputs, outputs } = await addFeeToTx(
-                NETWORK,
-                paymentAddress,
-                utxos,
-                nonFeeInputs,
-                nonFeeOutputs
-            );
-            const rawTx = await client.createRawTx({
-                address: paymentAddress,
-                inputs,
-                outputs,
-                publicKey: paymentPublicKey,
-            });
-            const tokenResult = await signPsbt(rawTx.toHex());
-            if (tokenResult && tokenResult?.signedPsbtHex) {
-                const newPsbt = Psbt.fromHex(tokenResult?.signedPsbtHex);
-                newPsbt.finalizeAllInputs();
-                newPsbt.extractTransaction(true).toHex();
-                setIsOpen(true);
-                setLoading(false);
-                setDepositLink(
-                    '6fb5f7bae224cfd28419e73f0f473ccfcf43a640e54d7ca298c65b35c4a8f26a'
-                );
-                setBlockDepositeLink('273510');
-                toast.success('Pool created successfully', toastStyles);
-            }
+          const message = await client.getGlittrMessageByTxId(txid);
+          console.log("Message received:", message);
+          setBlockDepositeLink(message.block_tx);
+          break;
         } catch (error) {
-            console.log(error);
-            console.error('Error depositing liquidity:', error);
-            toast.error(
-                'Error depositing liquidity: ' + (error as Error).message
-            );
+          console.log(error);
+          console.log("Waiting for message confirmation...");
+          await new Promise((resolve) => setTimeout(resolve, 5000)); // Retry every 5 seconds
         }
+      }
+      setIsOpen(true);
+      setLoading(false);
+      console.log("Liquidity deposit completed successfully");
+      toast.success("Liquidity deposit completed successfully", toastStyles);
+    } catch (error) {
+      console.error("Error depositing liquidity:", error);
+      toast.error(
+        "Error depositing liquidity: " + (error as Error).message,
+        toastStyles
+      );
+    }
+  };
+
+  useEffect(() => {
+    // Fetch and process the list of deployed Glittr asset contracts
+    const run = async (): Promise<void> => {
+      try {
+        console.log("Fetching contracts from API...");
+        // API to get list of assets
+        const res = await fetch(
+          `${"https://devnet-core-api.glittr.fi"}/helper/assets`
+        );
+        const listContractRaw = await res.json();
+        console.log("Raw contract data:", listContractRaw);
+
+        interface ContractRawInfo {
+          ticker?: string;
+          total_supply: string;
+          supply_cap: string;
+          type?: {
+            free_mint: boolean;
+          };
+        }
+
+        interface ApiResponse {
+          result: {
+            [key: string]: ContractRawInfo;
+          };
+        }
+
+        // Type assertion for listContractRaw
+        const typedResponse = listContractRaw as ApiResponse;
+        console.log("Typed response:", typedResponse);
+
+        // Filter to only include Freemint asset contracts
+        const contracts = await Promise.all(
+          Object.keys(typedResponse.result)
+            .filter((contractId: string) => {
+              const contractInfo = typedResponse.result[contractId];
+              console.log("Processing contract:", contractId, contractInfo);
+
+              if (contractInfo.type) {
+                return contractInfo.type.free_mint === true;
+              } else {
+                return false;
+              }
+            })
+            .map(async (contractId: string) => {
+              // Fetch asset contract metadata to get the amount_per_mint
+              const contractInfo = typedResponse.result[contractId];
+              console.log("Fetching metadata for contract:", contractId);
+              const result = await (
+                await fetch(
+                  `${"https://devnet-core-api.glittr.fi"}/blocktx/${
+                    contractId.split(":")[0]
+                  }/${contractId.split(":")[1]}`
+                )
+              ).json();
+              console.log("Contract metadata result:", result);
+
+              return {
+                ticker: contractInfo.ticker ?? "",
+                contractId: contractId,
+                supply: `${contractInfo.total_supply}/${contractInfo.supply_cap}`,
+                amountPerMint:
+                  result.message.message.contract_creation.contract_type.moa
+                    .mint_mechanism.free_mint.amount_per_mint,
+              } as ContractInfo;
+            })
+        );
+        const last10 = contracts.slice(contracts.length - 25);
+        console.log("Final processed contracts:", last10);
+        setContracts(last10);
+      } catch (error) {
+        console.error("Error fetching contracts:", error);
+      }
     };
 
-    useEffect(() => {
-        // Fetch and process the list of deployed Glittr asset contracts
-        const run = async (): Promise<void> => {
-            try {
-                // API to get list of assets
-                const res = await fetch(
-                    `${'https://devnet-core-api.glittr.fi'}/helper/assets`
-                );
-                const listContractRaw = await res.json();
+    run();
+  }, []);
 
-                interface ContractRawInfo {
-                    ticker?: string;
-                    total_supply: string;
-                    supply_cap: string;
-                    type?: {
-                        free_mint: boolean;
-                    };
-                }
+  // Token selection handlers
+  const selectFirstToken = (token: ContractInfo): void => {
+    console.log("First token selected:", token);
+    setFirstTokenSelected(token);
+    setShowFirstDropdown(false);
+  };
 
-                interface ApiResponse {
-                    result: {
-                        [key: string]: ContractRawInfo;
-                    };
-                }
+  const selectSecondToken = (token: ContractInfo): void => {
+    console.log("Second token selected:", token);
+    setSecondTokenSelected(token);
+    setShowSecondDropdown(false);
+  };
+  return (
+    <>
+      {isOpen && (
+        <MyModal
+          isOpen={isOpen}
+          setIsOpen={setIsOpen}
+          link={amContract}
+          blockTuble={blockTuble}
+          depositLink={depositLink}
+          blockDepositeLink={blockDepositeLink}
+        />
+      )}
+      <div className="min-h-screen bg-[#1e1c1f] text-white font-mono relative overflow-hidden">
+        {/* Futuristic background elements */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute top-0 left-0 w-40 h-40 border-l-2 border-t-2 border-[#8b5cf6]/20 opacity-30"></div>
+          <div className="absolute bottom-0 right-0 w-60 h-60 border-r-2 border-b-2 border-[#8b5cf6]/20 opacity-30"></div>
+          <div className="absolute top-1/4 -left-20 w-40 h-[200%] bg-[#8b5cf6]/5 rotate-45"></div>
+          <div className="absolute bottom-1/3 -right-20 w-40 h-[200%] bg-[#8b5cf6]/5 rotate-45"></div>
+        </div>
 
-                // Type assertion for listContractRaw
-                const typedResponse = listContractRaw as ApiResponse;
+        {/* Main Content */}
+        <main className="relative z-10 max-w-2xl mx-auto px-4 py-32">
+          <div className="flex items-center mb-8">
+            <h1 className="ml-4 text-3xl font-bold tracking-wider text-[#ffe1ff]">
+              CREATE POOL
+            </h1>
+          </div>
 
-                // Filter to only include Freemint asset contracts
-                const contracts = await Promise.all(
-                    Object.keys(typedResponse.result)
-                        .filter((contractId: string) => {
-                            const contractInfo =
-                                typedResponse.result[contractId];
-
-                            if (contractInfo.type) {
-                                return contractInfo.type.free_mint === true;
-                            } else {
-                                return false;
-                            }
-                        })
-                        .map(async (contractId: string) => {
-                            // Fetch asset contract metadata to get the amount_per_mint
-                            const contractInfo =
-                                typedResponse.result[contractId];
-                            const result = await (
-                                await fetch(
-                                    `${'https://devnet-core-api.glittr.fi'}/blocktx/${
-                                        contractId.split(':')[0]
-                                    }/${contractId.split(':')[1]}`
-                                )
-                            ).json();
-
-                            return {
-                                ticker: contractInfo.ticker ?? '',
-                                contractId: contractId,
-                                supply: `${contractInfo.total_supply}/${contractInfo.supply_cap}`,
-                                amountPerMint:
-                                    result.message.message.contract_creation
-                                        .contract_type.moa.mint_mechanism
-                                        .free_mint.amount_per_mint,
-                            } as ContractInfo;
-                        })
-                );
-                const last10 = contracts.slice(contracts.length - 25);
-                setContracts(last10);
-            } catch (error) {
-                console.error('Error fetching contracts:', error);
-            }
-        };
-
-        run();
-    }, []);
-
-    // Token selection handlers
-    const selectFirstToken = (token: ContractInfo): void => {
-        setFirstTokenSelected(token);
-        setShowFirstDropdown(false);
-    };
-
-    const selectSecondToken = (token: ContractInfo): void => {
-        setSecondTokenSelected(token);
-        setShowSecondDropdown(false);
-    };
-    return (
-        <>
-            {isOpen && (
-                <MyModal
-                    isOpen={isOpen}
-                    setIsOpen={setIsOpen}
-                    link={amContract}
-                    blockTuble={blockTuble}
-                    depositLink={depositLink}
-                    blockDepositeLink={blockDepositeLink}
-                />
-            )}
-            <div className="min-h-screen bg-[#1e1c1f] text-white font-mono relative overflow-hidden">
-                {/* Futuristic background elements */}
-                <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                    <div className="absolute top-0 left-0 w-40 h-40 border-l-2 border-t-2 border-[#8b5cf6]/20 opacity-30"></div>
-                    <div className="absolute bottom-0 right-0 w-60 h-60 border-r-2 border-b-2 border-[#8b5cf6]/20 opacity-30"></div>
-                    <div className="absolute top-1/4 -left-20 w-40 h-[200%] bg-[#8b5cf6]/5 rotate-45"></div>
-                    <div className="absolute bottom-1/3 -right-20 w-40 h-[200%] bg-[#8b5cf6]/5 rotate-45"></div>
-                </div>
-
-                {/* Main Content */}
-                <main className="relative z-10 max-w-2xl mx-auto px-4 py-32">
-                    <div className="flex items-center mb-8">
-                        <h1 className="ml-4 text-3xl font-bold tracking-wider text-[#ffe1ff]">
-                            CREATE POOL
-                        </h1>
-                    </div>
-
-                    <div className="bg-[#0f0f1a]/70 backdrop-blur-sm rounded-2xl border border-[#333333]/50 shadow-xl shadow-[#000]/40 p-1 mb-8">
-                        <div
-                            className="p-4 pt-5 pb-5 rounded-t-xl overflow-hidden relative"
-                            style={{
-                                background:
-                                    'linear-gradient(90deg, rgba(139,92,246,0.1) 0%, rgba(30,30,50,0.6) 100%)',
-                            }}
-                        >
-                            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-[#8b5cf6]/80 to-transparent"></div>
-                            <p className="text-white/90">
-                                Once you create a pool, you can monitor your
-                                total pool share percentage, enabling you to
-                                earn returns proportional to your share of the
-                                pool.
-                            </p>
-                        </div>
-
-                        {/* First Token Input */}
-                        <div className="m-5 mb-3 bg-[#0a0a10] rounded-xl p-4 border border-[#1f1f30] shadow-inner">
-                            <div className="flex justify-between items-center">
-                                <input
-                                    type="text"
-                                    value={firstTokenAmount}
-                                    onChange={(e) =>
-                                        setFirstTokenAmount(e.target.value)
-                                    }
-                                    className="w-2/3 bg-transparent text-3xl font-medium focus:outline-none"
-                                />
-                                <div
-                                    ref={firstDropdownRef}
-                                    className="relative"
-                                >
-                                    <button
-                                        onClick={() =>
-                                            setShowFirstDropdown(
-                                                !showFirstDropdown
-                                            )
-                                        }
-                                        className="flex items-center px-4 py-2 bg-[#131320] hover:bg-[#1f1f30] rounded-lg border border-[#333333]/50 transition-all duration-300"
-                                    >
-                                        {firstTokenSelected ? (
-                                            <div className="flex items-center">
-                                                <div className="w-6 h-6 rounded-full bg-orange-500 flex items-center justify-center mr-2">
-                                                    {firstTokenSelected.ticker.charAt(
-                                                        0
-                                                    )}
-                                                </div>
-                                                <span>
-                                                    {firstTokenSelected.ticker}
-                                                </span>
-                                            </div>
-                                        ) : (
-                                            <span>Select token</span>
-                                        )}
-                                        <FaChevronDown className="ml-2 w-3 h-3" />
-                                    </button>
-
-                                    {showFirstDropdown && contracts && (
-                                        <div className="absolute right-0 mt-2 w-64 bg-[#0a0a10] rounded-lg border border-[#1f1f30] shadow-xl z-50 max-h-60 overflow-y-auto">
-                                            {contracts.map((token) => (
-                                                <div
-                                                    key={token.contractId}
-                                                    className="flex items-center px-4 py-3 hover:bg-[#131320] cursor-pointer border-b border-[#1f1f30] last:border-b-0"
-                                                    onClick={() =>
-                                                        selectFirstToken(token)
-                                                    }
-                                                >
-                                                    <div className="w-8 h-8 rounded-full bg-purple-500 flex items-center justify-center mr-2">
-                                                        {token.ticker.charAt(0)}
-                                                    </div>
-                                                    <div>
-                                                        <div className="font-medium">
-                                                            {token.ticker}
-                                                        </div>
-                                                        <div className="text-xs text-gray-400">
-                                                            Supply:{' '}
-                                                            {token.supply}
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                            <div className="flex justify-end text-gray-400 text-sm mt-2">
-                                <span>
-                                    Balance:{' '}
-                                    {firstTokenSelected
-                                        ? firstTokenSelected.amountPerMint
-                                        : '0'}
-                                </span>
-                            </div>
-                        </div>
-
-                        {/* Add Token Button */}
-                        <div className="flex justify-center -my-2 relative z-10">
-                            <div className="w-14 h-14 rounded-full bg-[#131320] border-4 border-[#0f0f1a] flex items-center justify-center shadow-lg">
-                                <div className="w-10 h-10 rounded-full bg-gradient-to-r from-[#8b5cf6] to-[#6d4bb1] flex items-center justify-center">
-                                    <FiPlus className="w-6 h-6 text-white" />
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Second Token Input */}
-                        <div className="m-5 mt-3 bg-[#0a0a10] rounded-xl p-4 border border-[#1f1f30] shadow-inner">
-                            <div className="flex justify-between items-center">
-                                <input
-                                    type="text"
-                                    value={firstTokenAmount}
-                                    className="w-2/3 bg-transparent text-3xl font-medium focus:outline-none"
-                                />
-                                <div
-                                    ref={secondDropdownRef}
-                                    className="relative"
-                                >
-                                    <button
-                                        onClick={() =>
-                                            setShowSecondDropdown(
-                                                !showSecondDropdown
-                                            )
-                                        }
-                                        className="flex items-center px-4 py-2 bg-[#131320] hover:bg-[#1f1f30] rounded-lg border border-[#333333]/50 transition-all duration-300"
-                                    >
-                                        {secondTokenSelected ? (
-                                            <div className="flex items-center">
-                                                <div className="w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center mr-2">
-                                                    {secondTokenSelected.ticker.charAt(
-                                                        0
-                                                    )}
-                                                </div>
-                                                <span>
-                                                    {secondTokenSelected.ticker}
-                                                </span>
-                                            </div>
-                                        ) : (
-                                            <span>Select token</span>
-                                        )}
-                                        <FaChevronDown className="ml-2 w-3 h-3" />
-                                    </button>
-
-                                    {showSecondDropdown && contracts && (
-                                        <div className="absolute right-0 mt-2 w-64 bg-[#0a0a10] rounded-lg border border-[#1f1f30] shadow-xl z-50 max-h-60 overflow-y-auto">
-                                            {contracts
-                                                .filter(
-                                                    (token) =>
-                                                        !firstTokenSelected ||
-                                                        token.contractId !==
-                                                            firstTokenSelected.contractId
-                                                )
-                                                .map((token) => (
-                                                    <div
-                                                        key={token.contractId}
-                                                        className="flex items-center px-4 py-3 hover:bg-[#131320] cursor-pointer border-b border-[#1f1f30] last:border-b-0"
-                                                        onClick={() =>
-                                                            selectSecondToken(
-                                                                token
-                                                            )
-                                                        }
-                                                    >
-                                                        <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center mr-2">
-                                                            {token.ticker.charAt(
-                                                                0
-                                                            )}
-                                                        </div>
-                                                        <div>
-                                                            <div className="font-medium">
-                                                                {token.ticker}
-                                                            </div>
-                                                            <div className="text-xs text-gray-400">
-                                                                Supply:{' '}
-                                                                {token.supply}
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                ))}
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                            <div className="flex justify-end text-gray-400 text-sm mt-2">
-                                <span>
-                                    Balance:{' '}
-                                    {secondTokenSelected
-                                        ? secondTokenSelected.amountPerMint
-                                        : '0'}
-                                </span>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Create Pool Button */}
-                    {loading ? (
-                        <div
-                            className={`flex mt-12 items-center justify-center cursor-pointer bg-gradient-to-r from-[#8b5cf6] to-[#6d4bb1] hover:shadow-lg hover:shadow-[#8b5cf6]/20 w-full py-4 rounded-xl text-white  font-bold text-lg tracking-wider transition-all duration-300  overflow-hidden group`}
-                        >
-                            <div className="pr-2">
-                                CREATING POOL, PLEASE WAIT
-                            </div>
-                            <div role="status">
-                                <svg
-                                    aria-hidden="true"
-                                    className="size-6 text-gray-200 animate-spin fill-blue-600"
-                                    viewBox="0 0 100 101"
-                                    fill="none"
-                                    xmlns="http://www.w3.org/2000/svg"
-                                >
-                                    <path
-                                        d="M100 50.5908C100 78.2051 77.6142 100.591 50 100.591C22.3858 100.591 0 78.2051 0 50.5908C0 22.9766 22.3858 0.59082 50 0.59082C77.6142 0.59082 100 22.9766 100 50.5908ZM9.08144 50.5908C9.08144 73.1895 27.4013 91.5094 50 91.5094C72.5987 91.5094 90.9186 73.1895 90.9186 50.5908C90.9186 27.9921 72.5987 9.67226 50 9.67226C27.4013 9.67226 9.08144 27.9921 9.08144 50.5908Z"
-                                        fill="currentColor"
-                                    />
-                                    <path
-                                        d="M93.9676 39.0409C96.393 38.4038 97.8624 35.9116 97.0079 33.5539C95.2932 28.8227 92.871 24.3692 89.8167 20.348C85.8452 15.1192 80.8826 10.7238 75.2124 7.41289C69.5422 4.10194 63.2754 1.94025 56.7698 1.05124C51.7666 0.367541 46.6976 0.446843 41.7345 1.27873C39.2613 1.69328 37.813 4.19778 38.4501 6.62326C39.0873 9.04874 41.5694 10.4717 44.0505 10.1071C47.8511 9.54855 51.7191 9.52689 55.5402 10.0491C60.8642 10.7766 65.9928 12.5457 70.6331 15.2552C75.2735 17.9648 79.3347 21.5619 82.5849 25.841C84.9175 28.9121 86.7997 32.2913 88.1811 35.8758C89.083 38.2158 91.5421 39.6781 93.9676 39.0409Z"
-                                        fill="currentFill"
-                                    />
-                                </svg>
-                                <span className="sr-only">Loading...</span>
-                            </div>
-                        </div>
-                    ) : (
-                        <button
-                            onClick={handleCreatePool}
-                            disabled={
-                                !firstTokenSelected || !secondTokenSelected
-                            }
-                            className={`cursor-pointer w-full py-4 mt-6 rounded-xl text-white  font-bold text-lg tracking-wider transition-all duration-300  overflow-hidden group ${
-                                firstTokenSelected && secondTokenSelected
-                                    ? 'bg-gradient-to-r from-[#8b5cf6] to-[#6d4bb1] hover:shadow-lg hover:shadow-[#8b5cf6]/20'
-                                    : 'bg-gray-600 cursor-not-allowed'
-                            }`}
-                        >
-                            CREATE POOL
-                        </button>
-                    )}
-
-                    {/* Pool Creation Status */}
-                    <div className="mt-4 text-center text-sm text-gray-400">
-                        {(!firstTokenSelected || !secondTokenSelected) && (
-                            <p>Please select both tokens to create a pool</p>
-                        )}
-                    </div>
-                </main>
-
-                {/* Footer */}
-                <footer className="relative z-10 mt-10 pb-8 text-center text-gray-400">
-                    <div className="flex justify-center space-x-6 mb-4">
-                        <a
-                            href="#"
-                            className="p-2 bg-[#131320] rounded-full hover:bg-[#1f1f30] border border-[#333333]/50 hover:border-[#8b5cf6]/50 transition-all duration-300"
-                        >
-                            <FaTwitter className="w-5 h-5" />
-                        </a>
-                        <a
-                            href="#"
-                            className="p-2 bg-[#131320] rounded-full hover:bg-[#1f1f30] border border-[#333333]/50 hover:border-[#8b5cf6]/50 transition-all duration-300"
-                        >
-                            <FaTelegram className="w-5 h-5" />
-                        </a>
-                        <a
-                            href="#"
-                            className="p-2 bg-[#131320] rounded-full hover:bg-[#1f1f30] border border-[#333333]/50 hover:border-[#8b5cf6]/50 transition-all duration-300"
-                        >
-                            <FaGlobe className="w-5 h-5" />
-                        </a>
-                    </div>
-                    <p className="text-sm tracking-wider opacity-70">
-                        © 2025 Glittr DEX. All rights reserved.
-                    </p>
-                </footer>
+          <div className="bg-[#0f0f1a]/70 backdrop-blur-sm rounded-2xl border border-[#333333]/50 shadow-xl shadow-[#000]/40 p-1 mb-8">
+            <div
+              className="p-4 pt-5 pb-5 rounded-t-xl overflow-hidden relative"
+              style={{
+                background:
+                  "linear-gradient(90deg, rgba(139,92,246,0.1) 0%, rgba(30,30,50,0.6) 100%)",
+              }}
+            >
+              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-[#8b5cf6]/80 to-transparent"></div>
+              <p className="text-white/90">
+                Once you create a pool, you can monitor your total pool share
+                percentage, enabling you to earn returns proportional to your
+                share of the pool.
+              </p>
             </div>
-        </>
-    );
+
+            {/* First Token Input */}
+            <div className="m-5 mb-3 bg-[#0a0a10] rounded-xl p-4 border border-[#1f1f30] shadow-inner">
+              <div className="flex justify-between items-center">
+                <input
+                  type="text"
+                  value={firstTokenAmount}
+                  onChange={(e) => setFirstTokenAmount(e.target.value)}
+                  className="w-2/3 bg-transparent text-3xl font-medium focus:outline-none"
+                />
+                <div ref={firstDropdownRef} className="relative">
+                  <button
+                    onClick={() => setShowFirstDropdown(!showFirstDropdown)}
+                    className="flex items-center px-4 py-2 bg-[#131320] hover:bg-[#1f1f30] rounded-lg border border-[#333333]/50 transition-all duration-300"
+                  >
+                    {firstTokenSelected ? (
+                      <div className="flex items-center">
+                        <div className="w-6 h-6 rounded-full bg-orange-500 flex items-center justify-center mr-2">
+                          {firstTokenSelected.ticker.charAt(0)}
+                        </div>
+                        <span>{firstTokenSelected.ticker}</span>
+                      </div>
+                    ) : (
+                      <span>Select token</span>
+                    )}
+                    <FaChevronDown className="ml-2 w-3 h-3" />
+                  </button>
+
+                  {showFirstDropdown && contracts && (
+                    <div className="absolute right-0 mt-2 w-64 bg-[#0a0a10] rounded-lg border border-[#1f1f30] shadow-xl z-50 max-h-60 overflow-y-auto">
+                      {contracts.map((token) => (
+                        <div
+                          key={token.contractId}
+                          className="flex items-center px-4 py-3 hover:bg-[#131320] cursor-pointer border-b border-[#1f1f30] last:border-b-0"
+                          onClick={() => selectFirstToken(token)}
+                        >
+                          <div className="w-8 h-8 rounded-full bg-purple-500 flex items-center justify-center mr-2">
+                            {token.ticker.charAt(0)}
+                          </div>
+                          <div>
+                            <div className="font-medium">{token.ticker}</div>
+                            <div className="text-xs text-gray-400">
+                              Supply: {token.supply}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className="flex justify-end text-gray-400 text-sm mt-2">
+                <span>
+                  Balance:{" "}
+                  {firstTokenSelected ? firstTokenSelected.amountPerMint : "0"}
+                </span>
+              </div>
+            </div>
+
+            {/* Add Token Button */}
+            <div className="flex justify-center -my-2 relative z-10">
+              <div className="w-14 h-14 rounded-full bg-[#131320] border-4 border-[#0f0f1a] flex items-center justify-center shadow-lg">
+                <div className="w-10 h-10 rounded-full bg-gradient-to-r from-[#8b5cf6] to-[#6d4bb1] flex items-center justify-center">
+                  <FiPlus className="w-6 h-6 text-white" />
+                </div>
+              </div>
+            </div>
+
+            {/* Second Token Input */}
+            <div className="m-5 mt-3 bg-[#0a0a10] rounded-xl p-4 border border-[#1f1f30] shadow-inner">
+              <div className="flex justify-between items-center">
+                <input
+                  type="text"
+                  value={firstTokenAmount}
+                  className="w-2/3 bg-transparent text-3xl font-medium focus:outline-none"
+                />
+                <div ref={secondDropdownRef} className="relative">
+                  <button
+                    onClick={() => setShowSecondDropdown(!showSecondDropdown)}
+                    className="flex items-center px-4 py-2 bg-[#131320] hover:bg-[#1f1f30] rounded-lg border border-[#333333]/50 transition-all duration-300"
+                  >
+                    {secondTokenSelected ? (
+                      <div className="flex items-center">
+                        <div className="w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center mr-2">
+                          {secondTokenSelected.ticker.charAt(0)}
+                        </div>
+                        <span>{secondTokenSelected.ticker}</span>
+                      </div>
+                    ) : (
+                      <span>Select token</span>
+                    )}
+                    <FaChevronDown className="ml-2 w-3 h-3" />
+                  </button>
+
+                  {showSecondDropdown && contracts && (
+                    <div className="absolute right-0 mt-2 w-64 bg-[#0a0a10] rounded-lg border border-[#1f1f30] shadow-xl z-50 max-h-60 overflow-y-auto">
+                      {contracts
+                        .filter(
+                          (token) =>
+                            !firstTokenSelected ||
+                            token.contractId !== firstTokenSelected.contractId
+                        )
+                        .map((token) => (
+                          <div
+                            key={token.contractId}
+                            className="flex items-center px-4 py-3 hover:bg-[#131320] cursor-pointer border-b border-[#1f1f30] last:border-b-0"
+                            onClick={() => selectSecondToken(token)}
+                          >
+                            <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center mr-2">
+                              {token.ticker.charAt(0)}
+                            </div>
+                            <div>
+                              <div className="font-medium">{token.ticker}</div>
+                              <div className="text-xs text-gray-400">
+                                Supply: {token.supply}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className="flex justify-end text-gray-400 text-sm mt-2">
+                <span>
+                  Balance:{" "}
+                  {secondTokenSelected
+                    ? secondTokenSelected.amountPerMint
+                    : "0"}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Create Pool Button */}
+          {loading ? (
+            <div
+              className={`flex mt-12 items-center justify-center cursor-pointer bg-gradient-to-r from-[#8b5cf6] to-[#6d4bb1] hover:shadow-lg hover:shadow-[#8b5cf6]/20 w-full py-4 rounded-xl text-white  font-bold text-lg tracking-wider transition-all duration-300  overflow-hidden group`}
+            >
+              <div className="pr-2">CREATING POOL, PLEASE WAIT</div>
+              <div role="status">
+                <svg
+                  aria-hidden="true"
+                  className="size-6 text-gray-200 animate-spin fill-blue-600"
+                  viewBox="0 0 100 101"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    d="M100 50.5908C100 78.2051 77.6142 100.591 50 100.591C22.3858 100.591 0 78.2051 0 50.5908C0 22.9766 22.3858 0.59082 50 0.59082C77.6142 0.59082 100 22.9766 100 50.5908ZM9.08144 50.5908C9.08144 73.1895 27.4013 91.5094 50 91.5094C72.5987 91.5094 90.9186 73.1895 90.9186 50.5908C90.9186 27.9921 72.5987 9.67226 50 9.67226C27.4013 9.67226 9.08144 27.9921 9.08144 50.5908Z"
+                    fill="currentColor"
+                  />
+                  <path
+                    d="M93.9676 39.0409C96.393 38.4038 97.8624 35.9116 97.0079 33.5539C95.2932 28.8227 92.871 24.3692 89.8167 20.348C85.8452 15.1192 80.8826 10.7238 75.2124 7.41289C69.5422 4.10194 63.2754 1.94025 56.7698 1.05124C51.7666 0.367541 46.6976 0.446843 41.7345 1.27873C39.2613 1.69328 37.813 4.19778 38.4501 6.62326C39.0873 9.04874 41.5694 10.4717 44.0505 10.1071C47.8511 9.54855 51.7191 9.52689 55.5402 10.0491C60.8642 10.7766 65.9928 12.5457 70.6331 15.2552C75.2735 17.9648 79.3347 21.5619 82.5849 25.841C84.9175 28.9121 86.7997 32.2913 88.1811 35.8758C89.083 38.2158 91.5421 39.6781 93.9676 39.0409Z"
+                    fill="currentFill"
+                  />
+                </svg>
+                <span className="sr-only">Loading...</span>
+              </div>
+            </div>
+          ) : (
+            <button
+              onClick={handleCreatePool}
+              disabled={!firstTokenSelected || !secondTokenSelected}
+              className={`cursor-pointer w-full py-4 mt-6 rounded-xl text-white  font-bold text-lg tracking-wider transition-all duration-300  overflow-hidden group ${
+                firstTokenSelected && secondTokenSelected
+                  ? "bg-gradient-to-r from-[#8b5cf6] to-[#6d4bb1] hover:shadow-lg hover:shadow-[#8b5cf6]/20"
+                  : "bg-gray-600 cursor-not-allowed"
+              }`}
+            >
+              CREATE POOL
+            </button>
+          )}
+
+          {/* Pool Creation Status */}
+          <div className="mt-4 text-center text-sm text-gray-400">
+            {(!firstTokenSelected || !secondTokenSelected) && (
+              <p>Please select both tokens to create a pool</p>
+            )}
+          </div>
+        </main>
+
+        {/* Footer */}
+        <footer className="relative z-10 mt-10 pb-8 text-center text-gray-400">
+          <div className="flex justify-center space-x-6 mb-4">
+            <a
+              href="#"
+              className="p-2 bg-[#131320] rounded-full hover:bg-[#1f1f30] border border-[#333333]/50 hover:border-[#8b5cf6]/50 transition-all duration-300"
+            >
+              <FaTwitter className="w-5 h-5" />
+            </a>
+            <a
+              href="#"
+              className="p-2 bg-[#131320] rounded-full hover:bg-[#1f1f30] border border-[#333333]/50 hover:border-[#8b5cf6]/50 transition-all duration-300"
+            >
+              <FaTelegram className="w-5 h-5" />
+            </a>
+            <a
+              href="#"
+              className="p-2 bg-[#131320] rounded-full hover:bg-[#1f1f30] border border-[#333333]/50 hover:border-[#8b5cf6]/50 transition-all duration-300"
+            >
+              <FaGlobe className="w-5 h-5" />
+            </a>
+          </div>
+          <p className="text-sm tracking-wider opacity-70">
+            © 2025 Glittr DEX. All rights reserved.
+          </p>
+        </footer>
+      </div>
+    </>
+  );
 }
