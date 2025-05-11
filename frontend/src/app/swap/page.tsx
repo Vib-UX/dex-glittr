@@ -11,11 +11,19 @@ import { FiArrowDown } from "react-icons/fi";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import { useLaserEyes } from "@glittr-sdk/lasereyes";
-import { OpReturnMessage, txBuilder } from "@glittr-sdk/sdk";
+import {
+  OpReturnMessage,
+  txBuilder,
+  electrumFetchNonGlittrUtxos,
+  BitcoinUTXO,
+  Output,
+  addFeeToTx,
+} from "@glittr-sdk/sdk";
 import { Psbt } from "bitcoinjs-lib";
 
 import toast from "react-hot-toast";
 import MyModal from "@/components/modal";
+import SwapModal from "@/components/swapModal";
 import { toastStyles } from "@/components/helpers";
 import { ContractInfo } from "../tokens/page";
 import { client, NETWORK } from "../Provider";
@@ -234,7 +242,10 @@ function SwapContent(): React.ReactElement {
   const [selectedPool, setSelectedPool] = useState<ContractInfo | null>(null);
   const [showPoolSelection, setShowPoolSelection] = useState<boolean>(true);
   const [blockDepositeLink, setBlockDepositeLink] = useState<string>("");
+  const [swapTxLink, setSwapTxLink] = useState<string>("");
   const [isOpen, setIsOpen] = useState(false);
+  const [isSwapModalOpen, setIsSwapModalOpen] = useState(false);
+  const [isConfirmingSwap, setIsConfirmingSwap] = useState(false);
   const [loading, setLoading] = useState<boolean>(false);
   const [fromTokenBalance, setFromTokenBalance] = useState<string>("0");
   const [toTokenBalance, setToTokenBalance] = useState<string>("0");
@@ -400,11 +411,12 @@ function SwapContent(): React.ReactElement {
   }, []);
 
   const handleSwap = async (): Promise<void> => {
-    if (!account || !fromTokenSelected || !toTokenSelected) {
+    if (!account || !fromTokenSelected || !toTokenSelected || !selectedPool) {
       console.log("Missing required data:", {
         account,
         fromTokenSelected,
         toTokenSelected,
+        selectedPool,
       });
       toast.error(
         "Please connect your wallet and select both tokens",
@@ -415,44 +427,125 @@ function SwapContent(): React.ReactElement {
 
     setLoading(true);
     try {
-      // TODO: Implement swap logic here
       console.log("Starting swap with:", {
         fromToken: fromTokenSelected,
         toToken: toTokenSelected,
         amount: fromTokenAmount,
       });
 
-      // Example swap transaction structure
-      const backendTx: OpReturnMessage = {
+      // Get the AMM contract ID
+      const contractParts = selectedPool.contractId.split(":");
+      const contract: [number, number] = [
+        parseInt(contractParts[0]),
+        parseInt(contractParts[1]),
+      ];
+
+      // Get the input token contract ID
+      const fromTokenParts = fromTokenSelected.contractId.split(":");
+      const fromTokenContract: [number, number] = [
+        parseInt(fromTokenParts[0]),
+        parseInt(fromTokenParts[1]),
+      ];
+
+      // Get the output token contract ID
+      const toTokenParts = toTokenSelected.contractId.split(":");
+      const toTokenContract: [number, number] = [
+        parseInt(toTokenParts[0]),
+        parseInt(toTokenParts[1]),
+      ];
+
+      console.log("Contract details:", {
+        ammContract: contract,
+        fromTokenContract,
+        toTokenContract,
+      });
+
+      // Get input token UTXOs
+      const inputAssets = await client.getAssetUtxos(
+        paymentAddress,
+        `${fromTokenContract[0]}:${fromTokenContract[1]}`
+      );
+
+      if (inputAssets.length === 0) {
+        throw new Error(
+          `You do not have any ${fromTokenSelected.ticker} tokens`
+        );
+      }
+
+      // Calculate total input amount
+      const totalInput = inputAssets.reduce(
+        (sum, item) => sum + parseInt(item.assetAmount),
+        0
+      );
+
+      // Calculate amount to use for swap
+      const swapAmount = parseFloat(fromTokenAmount);
+      if (swapAmount > totalInput) {
+        throw new Error(`Insufficient ${fromTokenSelected.ticker} balance`);
+      }
+
+      // Calculate change amount
+      const changeAmount = totalInput - swapAmount;
+      console.log("totalInput", totalInput);
+      console.log("swapAmount", swapAmount);
+
+      console.log("changeAmount", changeAmount);
+      console.log("Min output amount:", minOutputAmount);
+
+      // Create the swap transaction
+      const swapTx: OpReturnMessage = {
         contract_call: {
-          contract: [0, 0], // TODO: Get actual contract ID
+          contract,
           call_type: {
             swap: {
               pointer: 1,
+              assert_values: { min_out_value: minOutputAmount.toString() },
             },
           },
         },
         transfer: {
           transfers: [
             {
-              asset: [0, 0], // TODO: Get actual asset ID
-              output: 1,
-              amount: fromTokenAmount,
+              asset: fromTokenContract,
+              output: 2,
+              amount: changeAmount.toString(), // Change output
             },
           ],
         },
       };
 
-      console.log("Backend transaction object:", backendTx);
+      console.log("Swap transaction object:", swapTx);
 
-      const txResp = txBuilder.customMessage(backendTx);
-      console.log("Transaction response:", txResp);
+      // Fetch non-Glittr UTXOs for fee calculation
+      const utxos = await electrumFetchNonGlittrUtxos(client, paymentAddress);
 
-      console.log("Creating transaction with client...");
-      const tokenPsbt = await client.createTx({
+      // Prepare inputs and outputs for the transaction
+      const nonFeeInputs: BitcoinUTXO[] = inputAssets;
+      const nonFeeOutputs: Output[] = [
+        { script: txBuilder.compile(swapTx), value: 0 }, // OP_RETURN output
+        { address: paymentAddress, value: 546 }, // Change output for input token
+        { address: paymentAddress, value: 546 }, // Change output for output token
+      ];
+
+      // Add fee to transaction
+      const { inputs, outputs } = await addFeeToTx(
+        NETWORK,
+        paymentAddress,
+        utxos,
+        nonFeeInputs,
+        nonFeeOutputs
+      );
+
+      console.log("Transaction fee calculated:", {
+        inputs: inputs.length,
+        outputs: outputs.length,
+      });
+
+      console.log("Creating raw transaction with client...");
+      const tokenPsbt = await client.createRawTx({
         address: paymentAddress,
-        tx: txResp,
-        outputs: [],
+        inputs,
+        outputs,
         publicKey: paymentPublicKey,
       });
       console.log("PSBT created:", tokenPsbt);
@@ -471,13 +564,19 @@ function SwapContent(): React.ReactElement {
       console.log("Broadcasting transaction...");
       const txid = await client.broadcastTx(txHex);
       console.log("Transaction broadcasted with ID:", txid);
+      setSwapTxLink(txid);
+
+      // Show the confirming state in the modal
+      setIsConfirmingSwap(true);
+      setIsSwapModalOpen(true);
 
       console.log("Waiting for message confirmation...");
       while (true) {
         try {
           const message = await client.getGlittrMessageByTxId(txid);
           console.log("Message received:", message);
-          setBlockDepositeLink(message.block_tx);
+          // Update the confirming state once confirmed
+          setIsConfirmingSwap(false);
           break;
         } catch (error) {
           console.log(error);
@@ -486,11 +585,11 @@ function SwapContent(): React.ReactElement {
         }
       }
 
-      setIsOpen(true);
       setLoading(false);
       toast.success("Swap completed successfully", toastStyles);
     } catch (error) {
       setLoading(false);
+      setIsConfirmingSwap(false);
       console.error("Error performing swap:", error);
       toast.error(
         "Error performing swap: " + (error as Error).message,
@@ -865,6 +964,16 @@ function SwapContent(): React.ReactElement {
           blockDepositeLink={blockDepositeLink}
         />
       )}
+      {isSwapModalOpen && (
+        <SwapModal
+          isOpen={isSwapModalOpen}
+          setIsOpen={setIsSwapModalOpen}
+          txLink={swapTxLink}
+          fromToken={fromTokenSelected?.ticker}
+          toToken={toTokenSelected?.ticker}
+          isConfirming={isConfirmingSwap}
+        />
+      )}
       <div className="min-h-screen bg-[#1e1c1f] text-white font-mono relative overflow-hidden">
         {/* Futuristic background elements */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
@@ -1172,17 +1281,33 @@ function SwapContent(): React.ReactElement {
                 ) : (
                   <>
                     {/* Swap Button */}
-                    <button
-                      onClick={handleSwap}
-                      disabled={!fromTokenSelected || !toTokenSelected}
-                      className={`cursor-pointer w-full py-4 mt-6 rounded-xl text-white font-bold text-lg tracking-wider transition-all duration-300 overflow-hidden group ${
-                        fromTokenSelected && toTokenSelected
-                          ? "bg-gradient-to-r from-[#8b5cf6] to-[#6d4bb1] hover:shadow-lg hover:shadow-[#8b5cf6]/20"
-                          : "bg-gray-600 cursor-not-allowed"
-                      }`}
-                    >
-                      SWAP
-                    </button>
+                    {loading ? (
+                      <button
+                        disabled
+                        className="w-full py-4 mt-6 rounded-xl text-white font-bold text-lg tracking-wider bg-gradient-to-r from-[#8b5cf6]/80 to-[#6d4bb1]/80 flex items-center justify-center gap-3"
+                      >
+                        <span>SWAPPING...</span>
+                        <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white"></div>
+                      </button>
+                    ) : (
+                      <button
+                        onClick={handleSwap}
+                        disabled={
+                          !fromTokenSelected ||
+                          !toTokenSelected ||
+                          parseFloat(fromTokenAmount) <= 0
+                        }
+                        className={`cursor-pointer w-full py-4 mt-6 rounded-xl text-white font-bold text-lg tracking-wider transition-all duration-300 overflow-hidden group ${
+                          fromTokenSelected &&
+                          toTokenSelected &&
+                          parseFloat(fromTokenAmount) > 0
+                            ? "bg-gradient-to-r from-[#8b5cf6] to-[#6d4bb1] hover:shadow-lg hover:shadow-[#8b5cf6]/20"
+                            : "bg-gray-600 cursor-not-allowed"
+                        }`}
+                      >
+                        SWAP
+                      </button>
+                    )}
                   </>
                 )}
               </div>
