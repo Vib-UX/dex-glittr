@@ -83,13 +83,8 @@ export async function POST(
 }
 
 // Handle OPTIONS requests for CORS preflight
-export async function OPTIONS(
-  request: NextRequest,
-  { params }: { params: { path: string[] } }
-) {
-  // Allow any origin
-  const origin = request.headers.get("origin") || "*";
-
+export async function OPTIONS(request: NextRequest) {
+  // We don't need params for OPTIONS request
   return new NextResponse(null, {
     status: 204,
     headers: {
