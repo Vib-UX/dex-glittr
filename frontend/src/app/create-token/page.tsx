@@ -139,7 +139,7 @@ export default function CreateToken() {
 
           // Now start the minting process with the confirmed token
           await findAndMintToken();
-        } catch (error) {
+        } catch {
           console.log("Token not yet confirmed, retrying in 5 seconds...");
           // Continue polling
         }
@@ -178,9 +178,7 @@ export default function CreateToken() {
       toast.success("Searching for token to mint...", toastStyles);
 
       // Start polling to find the token contract
-      let tokenFound = false;
       let attempts = 0;
-      let foundContract: ContractInfo | null = null;
 
       const findTokenInterval = setInterval(async () => {
         attempts++;
@@ -189,12 +187,10 @@ export default function CreateToken() {
         try {
           const contracts = await run();
           if (contracts && contracts.length > 0) {
-            tokenFound = true;
-            foundContract = contracts[0];
             clearInterval(findTokenInterval);
 
-            console.log("Token found, proceeding to mint:", foundContract);
-            await mint(foundContract);
+            console.log("Token found, proceeding to mint:", contracts[0]);
+            await mint(contracts[0]);
           } else if (attempts >= 12) {
             // Stop after 1 minute (12 attempts * 5 seconds)
             clearInterval(findTokenInterval);
@@ -320,7 +316,7 @@ export default function CreateToken() {
             toast.success("Tokens minted successfully", toastStyles);
             setIsOpen(true);
             setMintingState(false);
-          } catch (error) {
+          } catch {
             console.log("Mint not yet confirmed, retrying in 5 seconds...");
             // Continue polling
           }
